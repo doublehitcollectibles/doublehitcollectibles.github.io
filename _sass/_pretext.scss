@@ -1,0 +1,236 @@
+.hero .title[data-pretext-balance],
+.box-info .post-title[data-pretext-balance],
+.post .post-title[data-pretext-balance],
+.pretext-title[data-pretext-balance],
+.pretext-feature-title[data-pretext-balance],
+.pretext-stat-value[data-pretext-balance] {
+  width: 100%;
+  margin-right: auto;
+}
+
+.pretext-balance-line {
+  display: block;
+}
+
+.pretext-page {
+  width: min(1180px, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.pretext-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
+  gap: 1.5rem;
+  align-items: start;
+  padding: 1rem 0 2rem;
+}
+
+.pretext-hero-copy {
+  padding: 1.75rem;
+  border: 1px solid rgba(map-get($theme, accentDark), 0.12);
+  background:
+    radial-gradient(circle at top right, rgba(map-get($theme, themeColor), 0.18), transparent 35%),
+    linear-gradient(145deg, rgba(map-get($theme, accentDark), 0.06), rgba(map-get($theme, accentDark), 0.015));
+  box-shadow: 0 22px 55px rgba(map-get($theme, primaryDark), 0.25);
+}
+
+.pretext-eyebrow {
+  margin: 0 0 1rem;
+  color: rgba(map-get($theme, accentDark), 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.pretext-title {
+  margin: 0;
+  color: map-get($theme, accentDark);
+  font-size: clamp(2.4rem, 5vw, 5.6rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.pretext-intro {
+  max-width: 34rem;
+  margin: 1.25rem 0 0;
+  color: rgba(map-get($theme, accentDark), 0.78);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.pretext-measure-caption {
+  display: inline-flex;
+  margin-top: 0.9rem;
+  color: rgba(map-get($theme, accentDark), 0.54);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pretext-ribbon {
+  margin-top: 1.5rem;
+}
+
+.pretext-rich-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pretext-rich-line + .pretext-rich-line {
+  margin-top: 0.65rem;
+}
+
+.pretext-rich-fragment.pretext-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.95rem;
+  border: 1px solid rgba(map-get($theme, accentDark), 0.18);
+  border-radius: 999px;
+  background: rgba(map-get($theme, accentDark), 0.05);
+  color: map-get($theme, accentDark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pretext-rich-fragment.pretext-pill.pretext-pill--accent {
+  border-color: rgba(map-get($theme, themeColor), 0.45);
+  background: rgba(map-get($theme, themeColor), 0.15);
+}
+
+.pretext-stats {
+  display: grid;
+  gap: 1rem;
+}
+
+.pretext-stat-card {
+  padding: 1.25rem;
+  border: 1px solid rgba(map-get($theme, accentDark), 0.1);
+  background: rgba(map-get($theme, accentDark), 0.03);
+}
+
+.pretext-stat-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: rgba(map-get($theme, accentDark), 0.54);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pretext-stat-value {
+  display: block;
+  color: map-get($theme, accentDark);
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.pretext-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.9fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.pretext-story,
+.pretext-feature-card {
+  border: 1px solid rgba(map-get($theme, accentDark), 0.08);
+  background: rgba(map-get($theme, accentDark), 0.025);
+}
+
+.pretext-story {
+  padding: 1.75rem;
+}
+
+.pretext-section-title {
+  margin: 0 0 1rem;
+  color: map-get($theme, accentDark);
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  letter-spacing: -0.03em;
+  line-height: 0.94;
+}
+
+.pretext-prose {
+  color: rgba(map-get($theme, accentDark), 0.8);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.pretext-prose h3 {
+  margin-top: 1.5rem;
+  color: map-get($theme, accentDark);
+  font-size: 1.25rem;
+}
+
+.pretext-prose code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+  background: rgba(map-get($theme, accentDark), 0.08);
+  color: map-get($theme, lightGray);
+}
+
+.pretext-feature-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.pretext-feature-card {
+  padding: 1.25rem;
+}
+
+.pretext-feature-kicker {
+  margin: 0 0 0.5rem;
+  color: rgba(map-get($theme, themeColor), 0.82);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pretext-feature-title {
+  margin: 0;
+  color: map-get($theme, accentDark);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.pretext-feature-description {
+  margin: 0.85rem 0 0;
+  color: rgba(map-get($theme, accentDark), 0.72);
+  line-height: 1.65;
+}
+
+.pretext-feature-meta {
+  display: inline-flex;
+  margin-top: 0.85rem;
+  color: rgba(map-get($theme, accentDark), 0.48);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .pretext-hero,
+  .pretext-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pretext-page {
+    width: min(100%, calc(100% - 1.5rem));
+    padding-bottom: 3rem;
+  }
+
+  .pretext-hero-copy,
+  .pretext-story,
+  .pretext-feature-card {
+    padding: 1.25rem;
+  }
+}

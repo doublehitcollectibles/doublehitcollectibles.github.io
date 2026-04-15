@@ -4,6 +4,10 @@
   "description": "A Jekyll theme inspired by Netflix",
   "type": "module",
   "main": "gulpfile.js",
+  "scripts": {
+    "build": "gulp build",
+    "dev": "gulp"
+  },
   "homepage": "https://github.com/thiagorossener/jekflix-template.git#readme",
   "repository": {
     "type": "git",
@@ -25,6 +29,7 @@
     "browser-sync": "^2.26.7",
     "child_process": "^1.0.2",
     "del": "^7.0.0",
+    "esbuild": "^0.28.0",
     "gulp": "^4.0.2",
     "gulp-concat": "^2.6.1",
     "gulp-imagemin": "^8.0.0",
@@ -41,5 +46,8 @@
   },
   "engines": {
     "node": "^18"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.5"
   }
 }

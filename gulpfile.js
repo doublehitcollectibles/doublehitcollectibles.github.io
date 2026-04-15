@@ -12,6 +12,7 @@ import yaml from "gulp-yaml";
 import browserSync from "browser-sync";
 import cp from "child_process";
 import { deleteAsync } from "del";
+import { build as bundleJs } from "esbuild";
 import fs from "fs";
 import jsonSass from "json-sass";
 import source from "vinyl-source-stream";
@@ -51,7 +52,7 @@ function jekyll(done) {
   notify('Building Jekyll...');
   let bundle = process.platform === "win32" ? "bundle.bat" : "bundle";
   return cp
-    .spawn(bundle, ['exec', 'jekyll build'], { stdio: 'inherit' })
+    .spawn(bundle, ['exec', 'jekyll', 'build'], { stdio: 'inherit' })
     .on('close', done);
 }
 
@@ -149,11 +150,35 @@ function previewJs() {
 }
 
 /**
+ * Pretext Runtime Task
+ *
+ * Bundle the shared Pretext runtime so any layout can use the package APIs.
+ */
+async function buildPretextBundle() {
+  notify('Bundling Pretext runtime...');
+
+  await bundleJs({
+    entryPoints: ['src/js/pretext/runtime.js'],
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: ['es2018'],
+    outfile: 'assets/js/pretext-runtime.js',
+    sourcemap: true,
+    logLevel: 'silent'
+  });
+
+  fs.mkdirSync('_site/assets/js', { recursive: true });
+  fs.copyFileSync('assets/js/pretext-runtime.js', '_site/assets/js/pretext-runtime.js');
+  fs.copyFileSync('assets/js/pretext-runtime.js.map', '_site/assets/js/pretext-runtime.js.map');
+}
+
+/**
  * JavaScript Task
  * 
  * Run all the JS related tasks.
  */
-const js = gulp.parallel(mainJs, previewJs);
+const js = gulp.parallel(mainJs, previewJs, buildPretextBundle);
 
 /**
  * Images Task
@@ -185,6 +210,9 @@ function watch() {
 
   // Watch JS files for changes & recompile
   gulp.watch('src/js/main/**/*.js', mainJs);
+
+  // Watch Pretext runtime source, rebuild it, rerun Jekyll and reload
+  gulp.watch('src/js/pretext/**/*.js', gulp.series(buildPretextBundle, jekyll, reload));
 
   // Watch preview JS files for changes, copy files & reload
   gulp.watch('src/js/preview/**/*.js', gulp.series(previewJs, reload));
@@ -219,4 +247,4 @@ const run = gulp.series(gulp.parallel(js, theme, images), config, jekyll, gulp.p
  */
 const build = gulp.series(gulp.parallel(js, theme, images), config, jekyll);
 
-export { run as default, build };
+export { run as default, build, buildPretextBundle };
