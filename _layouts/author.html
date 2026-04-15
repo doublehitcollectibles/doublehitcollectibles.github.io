@@ -4,9 +4,9 @@ layout: page
 
 <div class="staff">
   {% if page.photo %}
-    <img class="img-rounded" src="{{ page.photo }}" alt="{{ author.display_name }}">
+    <img class="img-rounded" src="{% if page.photo contains '://' %}{{ page.photo }}{% else %}{{ page.photo | relative_url }}{% endif %}" alt="{{ page.display_name }}">
   {% else %}
-    <img class="img-rounded" src="/assets/img/user.jpg" alt="{{ author.display_name }}">
+    <img class="img-rounded" src="{{ '/assets/img/user.jpg' | relative_url }}" alt="{{ page.display_name }}">
   {% endif %}
 
   <h1 class="name">{{ page.display_name }}</h1>
@@ -55,9 +55,9 @@ layout: page
     "@type": "Person",
     "name": "{{ page.display_name }}",
     {% if page.photo %}
-    "image": "{{ page.photo }}",
+    "image": "{% if page.photo contains '://' %}{{ page.photo }}{% else %}{{ page.photo | absolute_url }}{% endif %}",
     {% else %}
-    "image": {{ "/assets/img/user.jpg" | prepend: site.baseurl | prepend: site.url }},
+    "image": "{{ '/assets/img/user.jpg' | absolute_url }}",
     {% endif %}
     "jobTitle": "{{ page.position }}",
     "url": "{{ page.url | prepend: site.baseurl | prepend: site.url }}",

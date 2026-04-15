@@ -7,7 +7,7 @@ description: Learn a little more about Double Hit Collectibles.
 permalink: /about/
 ---
 
-<img class="img-rounded" src="/assets/img/uploads/profile.png" alt="Double Hit Collectibles" width="200">
+<img class="img-rounded" src="{{ '/assets/img/uploads/profile.png' | relative_url }}" alt="Double Hit Collectibles" width="200">
 
 # About
 

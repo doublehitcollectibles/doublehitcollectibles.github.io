@@ -18,11 +18,11 @@
     <a href="{{ recommendation.url | prepend: site.baseurl }}" class="post-preview">
         <div class="image">
             {% if recommendation.optimized_image %}
-                <img src="{{ recommendation.optimized_image }}">
+                <img src="{% if recommendation.optimized_image contains '://' %}{{ recommendation.optimized_image }}{% else %}{{ recommendation.optimized_image | relative_url }}{% endif %}">
             {% elsif recommendation.image %}
-                <img src="{{ recommendation.image }}">
+                <img src="{% if recommendation.image contains '://' %}{{ recommendation.image }}{% else %}{{ recommendation.image | relative_url }}{% endif %}">
             {% else %}
-                <img src="/assets/img/off.jpg">
+                <img src="{{ '/assets/img/off.jpg' | relative_url }}">
             {% endif %}
         </div>
         <h3 class="title">{{ recommendation.title }}</h3>

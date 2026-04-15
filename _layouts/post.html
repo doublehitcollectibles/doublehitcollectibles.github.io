@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ site.language }}" class="no-js">
     {% include head.html %}
-    <body class="has-push-menu">
+    <body class="has-push-menu" data-baseurl="{{ site.baseurl }}">
         {% include minutes-to-read.html %}
         {% include svg-icons.html %}
         {% include header.html %}
@@ -22,7 +22,7 @@
                 <p class="post-subtitle">{{ page.subtitle }}</p>
 
                 {% if page.image and paginator.activated == nil %}
-                    <img src="{{ page.image }}" alt="Featured image" class="post-cover">
+                    <img src="{% if page.image contains '://' %}{{ page.image }}{% else %}{{ page.image | relative_url }}{% endif %}" alt="Featured image" class="post-cover">
                 {% endif %}
 
                 {% include pagination-post.html progressBar=true %}
@@ -44,11 +44,11 @@
                             <li>
                                 <a href="{{ post.url | prepend: site.baseurl }}">
                                     {% if post.optimized_image %}
-                                        <img src="{{ post.optimized_image }}">
+                                        <img src="{% if post.optimized_image contains '://' %}{{ post.optimized_image }}{% else %}{{ post.optimized_image | relative_url }}{% endif %}">
                                     {% elsif post.image %}
-                                        <img src="{{ post.image }}">
+                                        <img src="{% if post.image contains '://' %}{{ post.image }}{% else %}{{ post.image | relative_url }}{% endif %}">
                                     {% else %}
-                                        <img src="/assets/img/off.jpg">
+                                        <img src="{{ '/assets/img/off.jpg' | relative_url }}">
                                     {% endif %}
                                     <h3>{{ post.title }}</h3>
                                 </a>
@@ -82,7 +82,7 @@
         {% include comments.html %}
         {% include footer.html %}
 
-        {% assign author = site.authors | where: "name", post.author | first %}
+        {% assign author = site.authors | where: "name", page.author | first %}
 
         {% assign author_urls = '' %}
         {% if author.github_username %}
@@ -122,7 +122,7 @@
             "name": "{{ page.title }}",
             "headline": "{{ page.subtitle }}",
             "description": "{{ page.description }}",
-            "image": "{{ page.image }}",
+            "image": "{% if page.image contains '://' %}{{ page.image }}{% else %}{{ page.image | absolute_url }}{% endif %}",
             "url": "{{ page.url | prepend: site.baseurl | prepend: site.url }}",
             "articleBody": "{{ content | strip_html | xml_escape | textilize }}",
             "wordcount": "{{ content | number_of_words }}",
@@ -136,7 +136,7 @@
                 {% if author.photo %}
                 "image": "{{ author.photo }}",
                 {% else %}
-                "image": {{ "/assets/img/user.jpg" | prepend: site.baseurl | prepend: site.url }},
+                "image": "{{ '/assets/img/user.jpg' | absolute_url }}",
                 {% endif %}
                 "jobTitle": "{{ author.position }}",
                 "url": "{{ author.url | prepend: site.baseurl | prepend: site.url }}",
