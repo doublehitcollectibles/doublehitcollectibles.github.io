@@ -1,0 +1,78 @@
+---
+layout: default
+---
+
+<section class="pretext-page">
+    <header class="pretext-hero">
+        <div class="pretext-hero-copy">
+            {% if page.eyebrow %}
+                <p class="pretext-eyebrow">{{ page.eyebrow }}</p>
+            {% endif %}
+
+            <h1 class="pretext-title" data-pretext-balance data-pretext-target-lines="{{ page.pretext_target_lines | default: 3 }}">
+                {{ page.title }}
+            </h1>
+
+            {% if page.hero_intro %}
+                <p class="pretext-intro" data-pretext-measure>
+                    {{ page.hero_intro }}
+                    <span class="pretext-measure-caption" data-pretext-measure-output></span>
+                </p>
+            {% endif %}
+
+            {% if page.hero_ribbon %}
+                <div class="pretext-ribbon" data-pretext-rich-inline>
+                    <script type="application/json" class="pretext-rich-inline-source">{{ page.hero_ribbon | jsonify }}</script>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if page.stats %}
+            <div class="pretext-stats">
+                {% for stat in page.stats %}
+                    <article class="pretext-stat-card">
+                        <span class="pretext-stat-label">{{ stat.label }}</span>
+                        <strong class="pretext-stat-value" data-pretext-balance data-pretext-target-lines="2">
+                            {{ stat.value }}
+                        </strong>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </header>
+
+    <div class="pretext-grid">
+        <article class="pretext-story">
+            {% if page.section_title %}
+                <h2 class="pretext-section-title" data-pretext-balance data-pretext-target-lines="2">
+                    {{ page.section_title }}
+                </h2>
+            {% endif %}
+
+            <div class="pretext-prose">
+                {{ content }}
+            </div>
+        </article>
+
+        {% if page.feature_cards %}
+            <aside class="pretext-feature-grid">
+                {% for card in page.feature_cards %}
+                    <article class="pretext-feature-card">
+                        {% if card.kicker %}
+                            <p class="pretext-feature-kicker">{{ card.kicker }}</p>
+                        {% endif %}
+
+                        <h3 class="pretext-feature-title" data-pretext-balance data-pretext-target-lines="3">
+                            {{ card.title }}
+                        </h3>
+
+                        <p class="pretext-feature-description" data-pretext-measure>
+                            {{ card.description }}
+                            <span class="pretext-feature-meta" data-pretext-measure-output></span>
+                        </p>
+                    </article>
+                {% endfor %}
+            </aside>
+        {% endif %}
+    </div>
+</section>
