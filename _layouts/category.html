@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ site.language }}" class="no-js">
     {% include head.html %}
-    <body class="main-page has-push-menu">
+<body class="main-page has-push-menu" data-baseurl="{{ site.baseurl }}">
         {% include svg-icons.html %}
         {% include header.html %}
         <section class="content">
@@ -17,19 +17,19 @@
                                         <a class="cover" href="{{ post.url | prepend: site.baseurl }}">
                                             {% include loader.html %}
                                             {% if post.optimized_image %}
-                                                <img src="/assets/img/placeholder.png" width="100%" data-url="{{ post.optimized_image }}" class="preload">
+                                                <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{% if post.optimized_image contains '://' %}{{ post.optimized_image }}{% else %}{{ post.optimized_image | relative_url }}{% endif %}" class="preload">
                                                 <noscript>
-                                                    <img src="{{ post.optimized_image }}" width="100%">
+                                                    <img src="{% if post.optimized_image contains '://' %}{{ post.optimized_image }}{% else %}{{ post.optimized_image | relative_url }}{% endif %}" width="100%">
                                                 </noscript>
                                             {% elsif post.image %}
-                                                <img src="/assets/img/placeholder.png" width="100%" data-url="{{ post.image }}" class="preload">
+                                                <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{% if post.image contains '://' %}{{ post.image }}{% else %}{{ post.image | relative_url }}{% endif %}" class="preload">
                                                 <noscript>
-                                                    <img src="{{ post.image }}" width="100%">
+                                                    <img src="{% if post.image contains '://' %}{{ post.image }}{% else %}{{ post.image | relative_url }}{% endif %}" width="100%">
                                                 </noscript>
                                             {% else %}
-                                                <img src="/assets/img/placeholder.png" width="100%" data-url="/assets/img/off.jpg" class="preload">
+                                                <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{{ '/assets/img/off.jpg' | relative_url }}" class="preload">
                                                 <noscript>
-                                                    <img src="/assets/img/off.jpg" width="100%">
+                                                    <img src="{{ '/assets/img/off.jpg' | relative_url }}" width="100%">
                                                 </noscript>
                                             {% endif %}
                                             {% include new-post-tag.html date=post.date %}

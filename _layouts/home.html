@@ -18,7 +18,12 @@ layout: main
     {% if site.show_hero and paginator == nil or paginator.page == 1 %}
         <!-- Hero -->
         {% assign featured = posts.first %}
-        <section class="hero" style="background-image: url({{ featured.image }})">
+        {% if featured.image contains '://' %}
+            {% assign featured_image = featured.image %}
+        {% else %}
+            {% assign featured_image = featured.image | relative_url %}
+        {% endif %}
+        <section class="hero" style="background-image: url({{ featured_image }})">
             <div class="pixels"></div>
             <div class="gradient"></div>
             <div class="content">
@@ -53,19 +58,19 @@ layout: main
                     <a class="cover" href="{{ post.url | prepend: site.baseurl }}">
                         {% include loader.html %}
                         {% if post.optimized_image %}
-                            <img src="/assets/img/placeholder.png" width="100%" data-url="{{ post.optimized_image }}" class="preload">
+                            <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{% if post.optimized_image contains '://' %}{{ post.optimized_image }}{% else %}{{ post.optimized_image | relative_url }}{% endif %}" class="preload">
                             <noscript>
-                                <img src="{{ post.optimized_image }}" width="100%">
+                                <img src="{% if post.optimized_image contains '://' %}{{ post.optimized_image }}{% else %}{{ post.optimized_image | relative_url }}{% endif %}" width="100%">
                             </noscript>
                         {% elsif post.image %}
-                            <img src="/assets/img/placeholder.png" width="100%" data-url="{{ post.image }}" class="preload">
+                            <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{% if post.image contains '://' %}{{ post.image }}{% else %}{{ post.image | relative_url }}{% endif %}" class="preload">
                             <noscript>
-                                <img src="{{ post.image }}" width="100%">
+                                <img src="{% if post.image contains '://' %}{{ post.image }}{% else %}{{ post.image | relative_url }}{% endif %}" width="100%">
                             </noscript>
                         {% else %}
-                            <img src="/assets/img/placeholder.png" width="100%" data-url="/assets/img/off.jpg" class="preload">
+                            <img src="{{ '/assets/img/placeholder.png' | relative_url }}" width="100%" data-url="{{ '/assets/img/off.jpg' | relative_url }}" class="preload">
                             <noscript>
-                                <img src="/assets/img/off.jpg" width="100%">
+                                <img src="{{ '/assets/img/off.jpg' | relative_url }}" width="100%">
                             </noscript>
                         {% endif %}
                         {% include new-post-tag.html date=post.date %}

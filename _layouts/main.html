@@ -5,7 +5,7 @@ layout: compress
 <!DOCTYPE html>
 <html lang="{{ site.language }}" class="no-js">
     {% include head.html %}
-    <body class="main-page has-push-menu">
+    <body class="main-page has-push-menu" data-baseurl="{{ site.baseurl }}">
         {% include svg-icons.html %}
         {% include header.html %}
             <section class="content">
@@ -17,7 +17,7 @@ layout: compress
                 window.netlifyIdentity.on("init", function(user) {
                     if (!user) {
                         window.netlifyIdentity.on("login", function() {
-                            document.location.href = "/admin/";
+                            document.location.href = "{{ '/admin/' | relative_url }}";
                         });
                     }
                 });
