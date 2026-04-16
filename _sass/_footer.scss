@@ -113,11 +113,11 @@ footer {
 body.about-page {
   footer {
     max-width: rem(560px);
-    background: transparent;
-    border-top: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: none;
-    backdrop-filter: none;
-    padding: rem(16px) rem(18px);
+    background: rgba(8, 14, 24, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 rem(10px) rem(24px) rgba(0, 0, 0, 0.14);
+    backdrop-filter: blur(2px);
+    padding: rem(16px) rem(14px);
     margin-top: rem(38px);
     margin-bottom: rem(90px);
 
