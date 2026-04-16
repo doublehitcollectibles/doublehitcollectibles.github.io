@@ -112,7 +112,7 @@ footer {
 
 body.about-page {
   footer {
-    max-width: rem(560px);
+    max-width: rem(500px);
     background: rgba(8, 14, 24, 0.16);
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 rem(10px) rem(24px) rgba(0, 0, 0, 0.14);
@@ -129,11 +129,16 @@ body.about-page {
     p,
     a {
       color: rgba(255, 255, 255, 0.86);
+      font-weight: 400;
     }
 
     a:hover {
       color: #fff;
       fill: #fff;
+    }
+
+    .footer-credit a {
+      font-weight: 500;
     }
   }
 }
