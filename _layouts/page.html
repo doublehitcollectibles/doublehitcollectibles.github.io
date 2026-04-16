@@ -2,9 +2,9 @@
 layout: default
 ---
 
-<div class="post">
+<div class="post{% if page.page_class %} {{ page.page_class }}{% endif %}">
 
-  <article class="post-content fullwidth">
+  <article class="post-content fullwidth{% if page.page_class %} {{ page.page_class }}__content{% endif %}">
     {{ content }}
   </article>
 
