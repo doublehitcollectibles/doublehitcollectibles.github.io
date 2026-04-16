@@ -38,13 +38,13 @@
     width: 72%;
     max-width: rem(380px);
     height: auto;
-    padding: rem(76px) 0 0 rem(18px);
+    padding: rem(58px) 0 0 rem(18px);
     z-index: 1;
 
     @include media(">=sm") {
       width: 44%;
       max-width: rem(420px);
-      padding: rem(96px) 0 0 rem(28px);
+      padding: rem(72px) 0 0 rem(28px);
     }
 
     .date {
