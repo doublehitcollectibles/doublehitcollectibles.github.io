@@ -2,7 +2,7 @@
 date: 2026-04-15 12:00:00
 layout: post
 title: Welcome to Double Hit Collectibles
-subtitle: A fresh start for updates, releases, and collecting highlights.
+subtitle: A strategic showcase for Pokemon card collecting, collection growth, and long-term value.
 description: This is the first post on the new Double Hit Collectibles site, powered by the Jekflix template.
 image: /assets/img/blog-image.png
 optimized_image: /assets/img/blog-image.png
