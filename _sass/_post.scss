@@ -712,13 +712,18 @@
   }
 }
 
+body.about-page {
+  background:
+    linear-gradient(180deg, rgba(8, 18, 32, 0.56), rgba(8, 18, 32, 0.72)),
+    url(../../assets/img/uploads/pokemon-hoenn-1.png) center top / cover fixed no-repeat;
+  background-color: #081220;
+}
+
 .about-page__content {
   position: relative;
   min-height: calc(100vh - #{rem(90px)});
   padding: rem(72px) rem(14px) rem(56px) !important;
-  background:
-    linear-gradient(180deg, rgba(8, 18, 32, 0.56), rgba(8, 18, 32, 0.68)),
-    url(../../assets/img/uploads/pokemon-hoenn-1.png) center center / cover no-repeat;
+  background: transparent;
   overflow: hidden;
 
   @include media(">=sm") {

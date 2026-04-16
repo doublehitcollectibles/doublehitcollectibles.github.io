@@ -109,3 +109,22 @@ footer {
     }
   }
 }
+
+body.about-page {
+  footer {
+    background: rgba(8, 14, 24, 0.58);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 rem(18px) rem(40px) rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(6px);
+
+    p,
+    a {
+      color: rgba(255, 255, 255, 0.86);
+    }
+
+    a:hover {
+      color: #fff;
+      fill: #fff;
+    }
+  }
+}
