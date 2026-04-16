@@ -5,85 +5,190 @@ body {
 
 .bar-header {
   background-color: $primaryDark;
-  padding: rem(10px) rem(15px);
   position: fixed;
+  top: 0;
   left: 0;
   width: 100%;
   z-index: 10;
-  transition: top 0.5s, left 0.3s ease, background-color 0.5s, box-shadow 0.5s;
+  box-sizing: border-box;
+  min-height: rem(58px);
+  padding: 0 rem(14px);
+  transition: min-height 0.5s ease, background-color 0.5s, box-shadow 0.5s;
   
   @include media(">=sm") {
-    padding: rem(15px) rem(0px);
+    min-height: rem(66px);
+    padding: 0 rem(20px);
+  }
+
+  &.is-scrolled {
+    min-height: rem(68px);
+    box-shadow: 0 rem(8px) rem(20px) rgba(0, 0, 0, 0.25);
+
+    @include media(">=sm") {
+      min-height: rem(78px);
+    }
   }
 
   .logo {
-    display: inline-block;
     margin: 0;
-    height: rem(32px);
-    line-height: rem(32px);
+    position: absolute;
+    top: 50%;
+    left: rem(54px);
+    transform: translateY(-50%);
+    max-width: calc(100% - #{rem(108px)});
+    transition: left 0.7s ease, transform 0.7s ease, max-width 0.7s ease;
 
-    a {
-      display: block;
+    @include media(">=sm") {
+      left: rem(72px);
+      max-width: calc(100% - #{rem(168px)});
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: flex-start;
+      gap: rem(6px);
+      max-width: 100%;
+      min-width: 0;
       color: $accentDark;
       text-decoration: none;
-      font-size: rem(32px);
+      font-size: rem(15px);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: rem(0.4px);
       position: relative;
       outline: 0;
+      white-space: nowrap;
+      transition: font-size 0.7s ease, letter-spacing 0.7s ease, color 0.5s ease;
+
+      @include media(">=sm") {
+        font-size: rem(17px);
+      }
+    }
+
+    .logo-text {
+      display: block;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     svg {
-      width: rem(120px);
-      height: rem(30px);
-      transition: all .4s;
+      width: rem(112px);
+      height: rem(28px);
+      transition: width 0.7s ease, height 0.7s ease;
   
       @include media(">=sm") {
-        width: rem(205px);
+        width: rem(150px);
+        height: rem(34px);
+      }
+    }
+  }
+
+  &.is-scrolled {
+    .logo {
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: calc(100% - #{rem(144px)});
+
+      @include media(">=sm") {
+        max-width: calc(100% - #{rem(224px)});
+      }
+    }
+
+    .logo-link {
+      font-size: rem(17px);
+      letter-spacing: rem(0.25px);
+
+      @include media(">=sm") {
+        font-size: rem(24px);
+      }
+    }
+
+    svg {
+      width: rem(132px);
+      height: rem(32px);
+
+      @include media(">=sm") {
+        width: rem(196px);
+        height: rem(40px);
       }
     }
   }
 
   .version {
     color: $accentDark;
-    font-size: rem(10px);
+    font-size: rem(8px);
     font-weight: normal;
     line-height: 1;
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: block;
-    transform: translateX(110%);
-    opacity: 0.3;
+    display: inline-block;
+    margin-top: rem(1px);
+    opacity: 0.4;
   }
 
-  .icon-menu {
-    float: left;
+  .header-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: rem(36px);
+    height: rem(36px);
     cursor: pointer;
-    margin: rem(5px) rem(20px) rem(5px) 0;
-    width: rem(20px);
-    height: rem(20px);
-    fill: $accentDark;
+    text-decoration: none;
+    transition: transform 0.6s ease;
 
     @include media(">=sm") {
-      margin: rem(5px) rem(20px) rem(5px) rem(25px);
+      width: rem(40px);
+      height: rem(40px);
+    }
+  }
+
+  .header-control-left {
+    position: absolute;
+    left: rem(14px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 4;
+
+    @include media(">=sm") {
+      left: rem(20px);
+    }
+  }
+
+  .header-actions {
+    position: absolute;
+    right: rem(14px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: rem(10px);
+    z-index: 4;
+    transition: transform 0.7s ease, right 0.7s ease;
+
+    @include media(">=sm") {
+      right: rem(20px);
+      gap: rem(12px);
+    }
+  }
+
+  &.is-scrolled {
+    .header-actions {
+      transform: translateY(-50%) translateX(rem(-4px));
     }
   }
 
   .dosearch {
-    float: right;
-    width: rem(30px);
-    height: rem(30px);
-    cursor: pointer;
-    margin: 0;
-    @include media(">=sm") {
-      margin: 0 rem(20px) 0 0;
-    }
+    padding: 0;
   }
 
+  .icon-menu,
   .icon-search {
     width: rem(20px);
     height: rem(20px);
     fill: $accentDark;
-    margin: rem(5px);
+    margin: 0;
+    transition: fill 0.5s ease;
   }
 
   .get-theme {
@@ -95,11 +200,11 @@ body {
     color: $accentDark;
     padding: rem(5px) rem(10px);
     border-radius: rem(5px);
-    float: right;
-    margin: rem(5px) rem(15px) rem(5px) rem(5px);
+    margin: 0;
 
     @include media(">=sm") {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
     }
   }
 }

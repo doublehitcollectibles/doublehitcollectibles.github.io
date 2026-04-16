@@ -1,24 +1,27 @@
 <header class="bar-header">
-    <a id="menu" role="button">
+    <a id="menu" class="header-control header-control-left" role="button" aria-label="Open menu">
         <svg id="open" class="icon-menu"><use xlink:href="#icon-menu"></use></svg>
     </a>
     <h1 class="logo">
-        <a href="{{ site.baseurl }}/">
+        <a class="logo-link" href="{{ site.baseurl }}/">
             {% if site.use_logo %}
                 {% include logo.html %}
             {% else %}
-                {{ site.name }} <span class="version">{{ site.version }}</span>
+                <span class="logo-text">{{ site.name }}</span>
+                <span class="version">{{ site.version }}</span>
             {% endif %}
         </a>
     </h1>
-    <a id="search" class="dosearch" role="button">
-        <svg class="icon-search"><use xlink:href="#icon-search"></use></svg>
-    </a>
-    {% if site.show_get_theme_btn %}
-        <a href="https://github.com/thiagorossener/jekflix-template" class="get-theme" role="button">
-            Get this theme!
+    <div class="header-actions">
+        <a id="search" class="dosearch header-control header-control-right" role="button" aria-label="Open search">
+            <svg class="icon-search"><use xlink:href="#icon-search"></use></svg>
         </a>
-    {% endif %}
+        {% if site.show_get_theme_btn %}
+            <a href="https://github.com/thiagorossener/jekflix-template" class="get-theme" role="button">
+                Get this theme!
+            </a>
+        {% endif %}
+    </div>
 </header>
 
 <div id="mask" class="overlay"></div>
