@@ -732,16 +732,16 @@ body.about-page {
 .about-page__inner {
   position: relative;
   z-index: 1;
-  width: min(100%, #{rem(640px)});
+  width: min(100%, #{rem(560px)});
   margin: 0 auto;
-  padding: rem(18px) rem(16px);
-  border: 0;
-  background: transparent;
-  backdrop-filter: none;
-  box-shadow: none;
+  padding: rem(16px) rem(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 14, 24, 0.16);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 rem(10px) rem(24px) rgba(0, 0, 0, 0.14);
 
   @include media(">=sm") {
-    padding: rem(20px) rem(22px);
+    padding: rem(18px) rem(20px);
   }
 
   h1,
