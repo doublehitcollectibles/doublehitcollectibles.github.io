@@ -7,19 +7,32 @@
 
     if (post && timeBar) {
         var lastScrollTop = 0;
+        var directionThreshold = 2;
         var maxScrollTop = post.scrollHeight;
+        var currentDirection = 'down';
 
         var completed = timeBar.querySelector('.completed');
         var remaining = timeBar.querySelector('.remaining');
         var timeCompleted = timeBar.querySelector('.time-completed');
         var timeRemaining = timeBar.querySelector('.time-remaining');
 
+        timeBar.setAttribute('data-scroll-direction', currentDirection);
+
         document.addEventListener('scroll', function () {
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            var scrollDelta = scrollTop - lastScrollTop;
 
-            if (scrollTop > lastScrollTop && shouldShow) {
+            if (scrollDelta > directionThreshold) {
+                currentDirection = 'down';
+            } else if (scrollDelta < -directionThreshold) {
+                currentDirection = 'up';
+            }
+
+            timeBar.setAttribute('data-scroll-direction', currentDirection);
+
+            if (Math.abs(scrollDelta) > directionThreshold && shouldShow && scrollTop > 0) {
                 timeBar.style.bottom = '0%';
-            } else {
+            } else if (!shouldShow || scrollTop <= 0) {
                 timeBar.style.bottom = '-100%';
             }
 
@@ -67,7 +80,7 @@
                 triggerFinishedReading();
             }
 
-            lastScrollTop = scrollTop;
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
         });
     }
 
