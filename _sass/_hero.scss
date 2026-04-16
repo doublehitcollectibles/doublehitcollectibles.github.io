@@ -35,49 +35,49 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 80%;
-    max-width: rem(460px);
+    width: 72%;
+    max-width: rem(380px);
     height: auto;
-    padding: rem(24px) 0 0 rem(24px);
+    padding: rem(76px) 0 0 rem(18px);
     z-index: 1;
 
     @include media(">=sm") {
-      width: 50%;
-      max-width: rem(520px);
-      padding: rem(40px) 0 0 rem(40px);
+      width: 44%;
+      max-width: rem(420px);
+      padding: rem(96px) 0 0 rem(28px);
     }
 
     .date {
-      font-size: rem(14px);
+      font-size: rem(12px);
       color: rgba(255, 255, 255, 0.75);
     }
 
     .title {
-      font-size: rem(32px);
-      line-height: 1.05;
+      font-size: rem(24px);
+      line-height: 1.08;
       color: #fff;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-      margin: rem(8px) 0 rem(12px);
+      margin: rem(6px) 0 rem(10px);
 
       @include media(">=sm") {
-        font-size: rem(40px);
+        font-size: rem(30px);
       }
     }
 
     .description {
-      font-size: rem(18px);
+      font-size: rem(15px);
       line-height: 1.3;
       color: #fff;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
       margin: 0;
 
       @include media(">=sm") {
-        font-size: rem(20px);
+        font-size: rem(17px);
       }
     }
 
     .buttons {
-      margin-top: rem(24px);
+      margin-top: rem(18px);
     }
 
     .button {
