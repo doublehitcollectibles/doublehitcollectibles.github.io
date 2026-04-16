@@ -1,6 +1,6 @@
-# Doublehit Collectibles
+# Double Hit Collectibles
 
-Doublehit Collectibles is the personal Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
+Double Hit Collectibles is the personal Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
 
 The goal of this project is to present a curated collection in a professional way, document why specific cards were acquired, and ultimately demonstrate that the collection is being built with strategy, discipline, and long-term value in mind.
 
@@ -10,11 +10,11 @@ Live site: [doublehitcollectibles.github.io](https://doublehitcollectibles.githu
 
 ### Homepage
 
-![Doublehit Collectibles live homepage](assets/img/readme/live-home.png)
+![Double Hit Collectibles live homepage](assets/img/readme/live-home.png)
 
 ### About Page
 
-![Doublehit Collectibles live about page](assets/img/readme/live-about.png)
+![Double Hit Collectibles live about page](assets/img/readme/live-about.png)
 
 ## Vision
 
@@ -31,7 +31,7 @@ The broader idea is to build trust with potential customers, collectors, and col
 
 ## Collection Showcase Direction
 
-The current direction for Doublehit Collectibles is to make the site a polished public-facing home for:
+The current direction for Double Hit Collectibles is to make the site a polished public-facing home for:
 
 - featured cards and collection highlights
 - Pokemon TCG updates, pickups, and release notes
@@ -70,20 +70,20 @@ That means the website should help visitors understand:
 - that cards were selected intentionally
 - that purchases were made for a purpose
 - that the collection is being monitored with a business and investment mindset
-- that Doublehit Collectibles operates with a strategy rather than impulse buying
+- that Double Hit Collectibles operates with a strategy rather than impulse buying
 
 This positioning helps turn the collection into a stronger brand story and gives future customers more confidence in the quality of the collection.
 
 ## Repository Purpose
 
-This repository powers the GitHub Pages site for Doublehit Collectibles.
+This repository powers the GitHub Pages site for Double Hit Collectibles.
 
 It currently supports:
 
 - brand pages and collection-focused content
 - homepage visuals and featured post presentation
 - blog-style posts for updates, releases, and highlights
-- custom styling and branding for the Doublehit Collectibles identity
+- custom styling and branding for the Double Hit Collectibles identity
 
 ## Tech Stack
 
@@ -138,7 +138,7 @@ The production site is deployed through GitHub Pages.
 
 ## Brand Ownership
 
-- Brand: `Doublehit Collectibles`
+- Brand: `Double Hit Collectibles`
 - Owner: `Braden Lee`
 - Handle: `0x00C0DE`
 - Focus: `Pokemon trading cards`
