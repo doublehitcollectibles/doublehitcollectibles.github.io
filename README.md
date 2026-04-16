@@ -1,27 +1,106 @@
 # Doublehit Collectibles
 
-Doublehit Collectibles is a Pokemon trading card brand and content site run by Braden Lee (`0x00C0DE`).
+Doublehit Collectibles is the personal Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
 
-This repository powers the GitHub Pages site for brand updates, collecting highlights, release notes, and Pokemon TCG-focused posts.
+The goal of this project is to present a curated collection in a professional way, document why specific cards were acquired, and ultimately demonstrate that the collection is being built with strategy, discipline, and long-term value in mind.
 
-## About The Site
+Live site: [doublehitcollectibles.github.io](https://doublehitcollectibles.github.io/)
 
-The site is built to showcase:
+## Live Site Preview
 
-- Pokemon trading card collecting updates
-- featured posts and homepage artwork for the Doublehit Collectibles brand
-- blog-style content around releases, pickups, hobby news, and collecting highlights
+### Homepage
 
-## Repo Structure
+![Doublehit Collectibles live homepage](assets/img/readme/live-home.png)
 
-Some of the most important folders and files:
+### About Page
 
-- `_posts/` for published posts
-- `_layouts/` and `_includes/` for page structure and reusable site sections
-- `_sass/` for styling
-- `assets/` for compiled CSS, JavaScript, and site images
-- `src/` for source images, JavaScript, and YAML config inputs used by the build pipeline
-- `.github/workflows/pages.yml` for GitHub Pages deployment
+![Doublehit Collectibles live about page](assets/img/readme/live-about.png)
+
+## Vision
+
+This website is intended to be more than a simple gallery of Pokemon cards.
+
+It is being developed as a brand-forward collection showcase where visitors can see:
+
+- what is currently in the collection
+- how the collection is being positioned over time
+- the reasoning behind acquisitions
+- how disciplined purchases can create stronger long-term results
+
+The broader idea is to build trust with potential customers, collectors, and collaborators by showing that the collection is not random inventory. Each purchase is intended to support a larger strategy.
+
+## Collection Showcase Direction
+
+The current direction for Doublehit Collectibles is to make the site a polished public-facing home for:
+
+- featured cards and collection highlights
+- Pokemon TCG updates, pickups, and release notes
+- brand storytelling around why specific items matter
+- future collection dashboards and performance views
+
+Over time, the site can evolve from a content-driven showcase into a collection intelligence platform.
+
+## Planned Market Tracking
+
+One of the main product ideas under consideration is a value-tracking layer that compares:
+
+- the price originally paid for a card
+- the current market value of that card
+- the unrealized gain or loss in dollars
+- the percentage return over time
+
+The intent is to present the collection the way modern portfolio tools present investment performance, similar to how Collectr displays returns and percentage movement.
+
+If this direction is pursued, the site may eventually support:
+
+- purchase-price records for cards in the collection
+- current market pricing pulled from a permitted pricing source
+- collection-level gain/loss summaries
+- per-card return percentages
+- time-based performance views to show how the collection has moved historically
+
+For Collectr specifically, the idea would be to evaluate whether a stable and permitted API or export workflow exists before building around it. That integration should only be used if it is reliable and compatible with Collectr's terms and access model.
+
+## Why This Matters
+
+The long-term value of the site is not only in showing what is owned, but in communicating how the collection is being managed.
+
+That means the website should help visitors understand:
+
+- that cards were selected intentionally
+- that purchases were made for a purpose
+- that the collection is being monitored with a business and investment mindset
+- that Doublehit Collectibles operates with a strategy rather than impulse buying
+
+This positioning helps turn the collection into a stronger brand story and gives future customers more confidence in the quality of the collection.
+
+## Repository Purpose
+
+This repository powers the GitHub Pages site for Doublehit Collectibles.
+
+It currently supports:
+
+- brand pages and collection-focused content
+- homepage visuals and featured post presentation
+- blog-style posts for updates, releases, and highlights
+- custom styling and branding for the Doublehit Collectibles identity
+
+## Tech Stack
+
+- Jekyll for site generation
+- GitHub Pages for hosting and deployment
+- Sass for styling
+- JavaScript for interactive site behavior
+- GitHub Actions for deployment automation
+
+## Project Structure
+
+- `_posts/` contains site posts and updates
+- `_layouts/` and `_includes/` contain reusable page structure
+- `_sass/` contains the site's styling
+- `assets/` contains compiled assets and images used by the live site
+- `src/` contains source configuration and build inputs
+- `.github/workflows/pages.yml` contains the GitHub Pages deployment workflow
 
 ## Local Development
 
@@ -32,49 +111,38 @@ bundle install
 npm install
 ```
 
-Run the asset + Jekyll build:
+Run the site build:
 
 ```bash
 npm run build
 ```
 
-For local development with file watching:
+Run local development tooling:
 
 ```bash
 npm run dev
 ```
 
-If you want to run Jekyll directly after dependencies are installed:
+If you want to serve the Jekyll site directly:
 
 ```bash
 bundle exec jekyll serve
 ```
 
-## Content Workflow
-
-To publish new Pokemon TCG content:
-
-1. Add a new Markdown post in `_posts/`.
-2. Set the title, subtitle, date, and image in the front matter.
-3. Use images from `assets/img/` or source them through `src/img/` if they should be part of the build pipeline.
-4. Commit the change and push it to `main` to deploy the live site.
-
 ## Deployment
 
-The site deploys through GitHub Pages.
+The production site is deployed through GitHub Pages.
 
-- pushes to `main` trigger the Pages workflow
-- `doublehit-v1` is used as a working branch when making changes before syncing them to `main`
+- pushes to `main` publish the live site
+- feature and working changes can be prepared on development branches before being synced to `main`
 
-## Brand
+## Brand Ownership
 
-Doublehit Collectibles is the public-facing brand for this site.
-
-- Brand name: `Doublehit Collectibles`
-- Maintainer: `Braden Lee`
-- Online handle: `0x00C0DE`
+- Brand: `Doublehit Collectibles`
+- Owner: `Braden Lee`
+- Handle: `0x00C0DE`
 - Focus: `Pokemon trading cards`
 
 ## License
 
-This repository includes upstream Jekyll theme foundations plus custom Doublehit Collectibles branding and content. See [LICENSE](LICENSE) for the license terms used in this repo.
+See [LICENSE](LICENSE) for the licensing terms used in this repository.
