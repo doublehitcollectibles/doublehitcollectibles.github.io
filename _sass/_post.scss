@@ -446,9 +446,11 @@
   }
 
   .bar {
+    position: relative;
     display: block;
     width: 100%;
     padding: rem(8px) rem(60px);
+
     &:after {
       clear: both;
       display: block;
@@ -461,6 +463,7 @@
     display: block;
     height: rem(5px);
     background-color: $themeColor;
+    transition: width 0.18s linear;
   }
 
   .remaining {
@@ -468,6 +471,40 @@
     display: block;
     height: rem(5px);
     background-color: #ccc;
+    transition: width 0.18s linear;
+  }
+
+  .time-direction {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    transform-origin: center;
+    color: rgba($themeColor, 0.58);
+    opacity: 0.86;
+    pointer-events: none;
+    z-index: 2;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+
+    .chevron {
+      width: rem(10px);
+      height: rem(10px);
+      fill: currentColor;
+    }
+
+    .chevron-second {
+      margin-left: rem(-4px);
+      opacity: 0.68;
+    }
+  }
+
+  &[data-scroll-direction="up"] {
+    .time-direction {
+      transform: translate(-50%, -50%) scaleX(-1);
+    }
   }
 
   .time-completed,

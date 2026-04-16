@@ -1,7 +1,11 @@
-<div class="time-bar" data-minutes="{{ totalMinutes }}">
+<div class="time-bar" data-minutes="{{ totalMinutes }}" data-scroll-direction="down">
     <span class="time-completed"></span>
     <span class="time-remaining"></span>
     <div class="bar">
+        <span class="time-direction" aria-hidden="true">
+            <svg class="chevron chevron-first"><use xlink:href="#icon-arrow-right"></use></svg>
+            <svg class="chevron chevron-second"><use xlink:href="#icon-arrow-right"></use></svg>
+        </span>
         <span class="completed" style="width:0%;"></span>
         <span class="remaining" style="width:100%;"></span>
     </div>
