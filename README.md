@@ -1,8 +1,8 @@
 # Double Hit Collectibles
 
-Double Hit Collectibles is the personal Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
+Double Hit Collectibles is the Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
 
-The goal of this project is to present a curated collection in a professional way, document why specific cards were acquired, and ultimately demonstrate that the collection is being built with strategy, discipline, and long-term value in mind.
+This project is designed to present the collection in a polished, brand-forward format while documenting the long-term direction of the collection. The website combines visual identity, collection storytelling, and update-driven content to show that acquisitions are intentional, curated, and built with a clear purpose.
 
 Live site: [doublehitcollectibles.github.io](https://doublehitcollectibles.github.io/)
 
@@ -16,89 +16,78 @@ Live site: [doublehitcollectibles.github.io](https://doublehitcollectibles.githu
 
 ![Double Hit Collectibles live about page](assets/img/readme/live-about.png)
 
-## Vision
+## Project Overview
 
-This website is intended to be more than a simple gallery of Pokemon cards.
+Double Hit Collectibles is being developed as a professional home base for:
 
-It is being developed as a brand-forward collection showcase where visitors can see:
+- collection updates and featured highlights
+- brand presentation and collector positioning
+- public-facing storytelling around the collection
+- future collection tracking and performance reporting
 
-- what is currently in the collection
-- how the collection is being positioned over time
-- the reasoning behind acquisitions
-- how disciplined purchases can create stronger long-term results
+The current live site focuses on establishing the visual identity of the brand and creating a strong foundation for future collection content.
 
-The broader idea is to build trust with potential customers, collectors, and collaborators by showing that the collection is not random inventory. Each purchase is intended to support a larger strategy.
+## Current Website Experience
 
-## Collection Showcase Direction
+The site currently includes:
 
-The current direction for Double Hit Collectibles is to make the site a polished public-facing home for:
+- a branded homepage with featured post presentation
+- custom Pokemon-themed imagery and collection-focused visuals
+- an About page that introduces the brand and the purpose of the site
+- a Contact page and RSS feed for communication and updates
+- responsive navigation and GitHub Pages deployment
 
-- featured cards and collection highlights
-- Pokemon TCG updates, pickups, and release notes
-- brand storytelling around why specific items matter
-- future collection dashboards and performance views
+Today, the website functions primarily as a polished brand and content platform. Over time, it is intended to grow into a deeper collection showcase.
 
-Over time, the site can evolve from a content-driven showcase into a collection intelligence platform.
+## Brand Positioning
 
-## Planned Market Tracking
+Double Hit Collectibles is intended to communicate more than ownership. The brand is meant to show discipline, curation, and long-term thinking in how the collection is built.
 
-One of the main product ideas under consideration is a value-tracking layer that compares:
+The goal is to make it clear that the collection is not random inventory. Purchases are meant to reflect selectivity, quality standards, and a broader collecting strategy. That positioning helps build trust with collectors, customers, and collaborators who want to understand the reasoning behind the collection.
 
-- the price originally paid for a card
-- the current market value of that card
-- the unrealized gain or loss in dollars
-- the percentage return over time
+## Collection Roadmap
 
-The intent is to present the collection the way modern portfolio tools present investment performance, similar to how Collectr displays returns and percentage movement.
+The longer-term direction of the site is to expand beyond updates and visual branding into collection intelligence.
 
-If this direction is pursued, the site may eventually support:
+Planned areas of growth include:
 
-- purchase-price records for cards in the collection
-- current market pricing pulled from a permitted pricing source
-- collection-level gain/loss summaries
-- per-card return percentages
-- time-based performance views to show how the collection has moved historically
+- individual card or collection feature pages
+- acquisition notes and collecting rationale
+- showcase pages for standout items and milestones
+- collection organization by category, era, or priority
 
-For Collectr specifically, the idea would be to evaluate whether a stable and permitted API or export workflow exists before building around it. That integration should only be used if it is reliable and compatible with Collectr's terms and access model.
+## Market Value Tracking Direction
 
-## Why This Matters
+One of the main roadmap ideas is to introduce collection performance tracking that compares:
 
-The long-term value of the site is not only in showing what is owned, but in communicating how the collection is being managed.
+- purchase price
+- current market value
+- unrealized gain or loss
+- percentage return over time
 
-That means the website should help visitors understand:
+That would allow the site to present the collection in a way that feels closer to a portfolio view, helping visitors understand how the collection is performing and how strategically it has been built.
 
-- that cards were selected intentionally
-- that purchases were made for a purpose
-- that the collection is being monitored with a business and investment mindset
-- that Double Hit Collectibles operates with a strategy rather than impulse buying
-
-This positioning helps turn the collection into a stronger brand story and gives future customers more confidence in the quality of the collection.
+Collectr-style tracking remains a concept under evaluation. If that direction is pursued, it should be implemented only through a stable and permitted pricing source, export workflow, or API that is reliable and compatible with the provider's access model and terms.
 
 ## Repository Purpose
 
-This repository powers the GitHub Pages site for Double Hit Collectibles.
-
-It currently supports:
-
-- brand pages and collection-focused content
-- homepage visuals and featured post presentation
-- blog-style posts for updates, releases, and highlights
-- custom styling and branding for the Double Hit Collectibles identity
+This repository powers the public website for Double Hit Collectibles and contains the content, layouts, styling, assets, and deployment configuration used by the live GitHub Pages site.
 
 ## Tech Stack
 
-- Jekyll for site generation
-- GitHub Pages for hosting and deployment
-- Sass for styling
+- Jekyll for static site generation
+- GitHub Pages for hosting
+- Sass for custom styling
 - JavaScript for interactive site behavior
 - GitHub Actions for deployment automation
 
-## Project Structure
+## Repository Structure
 
-- `_posts/` contains site posts and updates
-- `_layouts/` and `_includes/` contain reusable page structure
-- `_sass/` contains the site's styling
-- `assets/` contains compiled assets and images used by the live site
+- `_posts/` contains website posts and featured content
+- `pages/` contains standalone pages such as About and Contact
+- `_layouts/` and `_includes/` contain the reusable page structure
+- `_sass/` contains the site's styling and component-level presentation
+- `assets/` contains compiled assets and image files used by the live site
 - `src/` contains source configuration and build inputs
 - `.github/workflows/pages.yml` contains the GitHub Pages deployment workflow
 
@@ -111,19 +100,19 @@ bundle install
 npm install
 ```
 
-Run the site build:
+Build the site:
 
 ```bash
 npm run build
 ```
 
-Run local development tooling:
+Run development tooling:
 
 ```bash
 npm run dev
 ```
 
-If you want to serve the Jekyll site directly:
+If you want to serve the site directly with Jekyll:
 
 ```bash
 bundle exec jekyll serve
@@ -133,8 +122,8 @@ bundle exec jekyll serve
 
 The production site is deployed through GitHub Pages.
 
-- pushes to `main` publish the live site
-- feature and working changes can be prepared on development branches before being synced to `main`
+- pushes to `main` publish the live website
+- ongoing work can be developed on feature branches before being pushed to `main`
 
 ## Brand Ownership
 
@@ -145,4 +134,4 @@ The production site is deployed through GitHub Pages.
 
 ## License
 
-See [LICENSE](LICENSE) for the licensing terms used in this repository.
+See [LICENSE](LICENSE) for the current license used in this repository.
