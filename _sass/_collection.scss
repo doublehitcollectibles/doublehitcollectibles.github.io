@@ -367,6 +367,33 @@
   gap: 12px;
 }
 
+.collection-admin-feedback {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(246, 242, 232, 0.88);
+  font-size: 0.96rem;
+}
+
+.collection-admin-feedback[data-mode="error"] {
+  border-color: rgba(255, 106, 99, 0.42);
+  background: rgba(255, 106, 99, 0.12);
+  color: #ffe5e2;
+}
+
+.collection-admin-feedback[data-mode="worker"] {
+  border-color: rgba(50, 210, 150, 0.42);
+  background: rgba(50, 210, 150, 0.12);
+  color: #dcfff0;
+}
+
+.collection-admin-feedback[data-mode="info"] {
+  border-color: rgba(255, 214, 68, 0.28);
+  background: rgba(255, 214, 68, 0.1);
+  color: #fff4c5;
+}
+
 .collection-admin-actions button,
 .collection-admin-secondary,
 .collection-admin-danger {

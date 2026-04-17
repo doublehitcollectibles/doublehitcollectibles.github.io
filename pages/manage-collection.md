@@ -48,6 +48,7 @@ page_class: collection-page collection-admin-page
           <button type="submit">Sign In</button>
         </div>
       </form>
+      <div class="collection-admin-feedback" data-admin-login-feedback hidden></div>
     </section>
 
     <section class="collection-grid-wrap collection-admin-card" data-admin-workspace hidden>

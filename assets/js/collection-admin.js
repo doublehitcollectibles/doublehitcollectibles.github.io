@@ -12,6 +12,7 @@
     status: app.querySelector("[data-admin-status]"),
     loginCard: app.querySelector("[data-admin-login-card]"),
     loginForm: app.querySelector("[data-admin-login-form]"),
+    loginFeedback: app.querySelector("[data-admin-login-feedback]"),
     workspace: app.querySelector("[data-admin-workspace]"),
     sessionCopy: app.querySelector("[data-admin-session-copy]"),
     logoutButton: app.querySelector("[data-admin-logout]"),
@@ -65,6 +66,23 @@
     elements.status.setAttribute("data-mode", mode || "info");
   }
 
+  function renderLoginFeedback(message, mode) {
+    if (!elements.loginFeedback) {
+      return;
+    }
+
+    if (!message) {
+      elements.loginFeedback.hidden = true;
+      elements.loginFeedback.textContent = "";
+      elements.loginFeedback.removeAttribute("data-mode");
+      return;
+    }
+
+    elements.loginFeedback.hidden = false;
+    elements.loginFeedback.textContent = message;
+    elements.loginFeedback.setAttribute("data-mode", mode || "info");
+  }
+
   function buildHeaders(includeAuth) {
     const headers = new Headers({
       "content-type": "application/json",
@@ -112,6 +130,10 @@
   function setAuthenticated(authenticated) {
     elements.loginCard.hidden = authenticated;
     elements.workspace.hidden = !authenticated;
+
+    if (authenticated) {
+      renderLoginFeedback("", "info");
+    }
   }
 
   function setFormDisabled(form, disabled) {
@@ -449,6 +471,7 @@
 
   async function submitLogin(event) {
     event.preventDefault();
+    renderLoginFeedback("Signing in...", "info");
 
     const formData = new FormData(elements.loginForm);
     const username = String(formData.get("username") || "").trim();
@@ -472,6 +495,7 @@
     if (!apiBase) {
       setAuthenticated(false);
       setWorkspaceEnabled(false);
+      renderLoginFeedback("Set pokemon_api_base_url before using the admin login.", "error");
       renderStatus("Set site.pokemon_api_base_url to your Cloudflare Worker URL to use the admin workspace.", "error");
       return;
     }
@@ -480,6 +504,7 @@
 
     if (!state.token) {
       setAuthenticated(false);
+      renderLoginFeedback("Use your configured admin username and plain password to sign in.", "info");
       renderStatus("Sign in to manage the Cloudflare-backed collection.", "info");
       return;
     }
@@ -498,6 +523,7 @@
     } catch (error) {
       setToken("");
       setAuthenticated(false);
+      renderLoginFeedback("Your previous admin session expired. Sign in again.", "error");
       renderStatus(error instanceof Error ? error.message : "Session expired. Sign in again.", "error");
     }
   }
@@ -513,6 +539,7 @@
     elements.cardList.innerHTML = "";
     elements.searchFeedback.textContent = "Search for a card to start building your collection.";
     resetForm(true);
+    renderLoginFeedback("You have been signed out.", "info");
     setAuthenticated(false);
     renderStatus("Signed out. Sign in to manage the Cloudflare-backed collection.", "info");
   }
@@ -520,7 +547,9 @@
   function bindEvents() {
     elements.loginForm.addEventListener("submit", (event) => {
       submitLogin(event).catch((error) => {
-        renderStatus(error instanceof Error ? error.message : "Login failed.", "error");
+        const message = error instanceof Error ? error.message : "Login failed.";
+        renderLoginFeedback(message, "error");
+        renderStatus(message, "error");
       });
     });
 
@@ -550,6 +579,7 @@
 
   bindEvents();
   checkSession().catch((error) => {
+    renderLoginFeedback(error instanceof Error ? error.message : "Admin workspace failed to initialize.", "error");
     renderStatus(error instanceof Error ? error.message : "Admin workspace failed to initialize.", "error");
   });
 })();
