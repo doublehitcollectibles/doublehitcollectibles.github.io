@@ -86,10 +86,21 @@
 
     const response = await fetch(`${apiBase}${path}`, requestInit);
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : null;
+    let payload = null;
+
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { error: text };
+      }
+    }
 
     if (!response.ok) {
-      const message = payload?.error || `Request failed (${response.status})`;
+      const rawMessage = payload?.error || text || `Request failed (${response.status})`;
+      const message = typeof rawMessage === "string"
+        ? rawMessage.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 240)
+        : `Request failed (${response.status})`;
       const error = new Error(message);
       error.status = response.status;
       throw error;

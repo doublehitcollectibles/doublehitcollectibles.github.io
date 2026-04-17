@@ -3,6 +3,10 @@ import type { Env } from "../types";
 
 const encoder = new TextEncoder();
 
+function normalizeSecretValue(value: string): string {
+  return value.trim().replace(/^['"]|['"]$/g, "");
+}
+
 function toBase64Url(value: ArrayBuffer | Uint8Array | string): string {
   const bytes =
     typeof value === "string"
@@ -20,7 +24,7 @@ function toBase64Url(value: ArrayBuffer | Uint8Array | string): string {
 }
 
 function fromBase64Url(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const normalized = normalizeSecretValue(value).replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized + "===".slice((normalized.length + 3) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
@@ -57,25 +61,32 @@ async function hashPassword(password: string, salt: Uint8Array, iterations: numb
 
 export async function verifyAdminPassword(env: Env, username: string, password: string): Promise<boolean> {
   const config = getPricingConfig(env);
+  const normalizedUsername = username.trim().toLowerCase();
+  const configuredUsername = config.adminUsername?.trim().toLowerCase();
 
-  if (!config.adminUsername || username !== config.adminUsername) {
+  if (!configuredUsername || normalizedUsername !== configuredUsername) {
     return false;
   }
 
   if (config.adminPasswordHash) {
-    const [iterationsValue, saltValue, hashValue] = config.adminPasswordHash.split(":");
-    const iterations = Number.parseInt(iterationsValue, 10);
+    const [iterationsValue, saltValue, hashValue] = normalizeSecretValue(config.adminPasswordHash).split(":");
+    const iterations = Number.parseInt(normalizeSecretValue(iterationsValue || ""), 10);
 
-    if (!iterations || !saltValue || !hashValue) {
+    if (!Number.isFinite(iterations) || iterations < 1 || !saltValue || !hashValue) {
       return false;
     }
 
-    const derived = await hashPassword(password, fromBase64Url(saltValue), iterations);
-    return timingSafeEquals(derived, fromBase64Url(hashValue));
+    try {
+      const derived = await hashPassword(password, fromBase64Url(saltValue), iterations);
+      return timingSafeEquals(derived, fromBase64Url(hashValue));
+    } catch (error) {
+      console.error("Failed to verify admin password hash.", error);
+      return false;
+    }
   }
 
   if (config.adminPassword) {
-    return config.adminPassword === password;
+    return normalizeSecretValue(config.adminPassword) === password;
   }
 
   return false;
@@ -105,7 +116,7 @@ export async function createSessionToken(env: Env, username: string): Promise<st
     exp: Date.now() + 1000 * 60 * 60 * 24 * 7,
   });
   const encodedPayload = toBase64Url(payload);
-  const signature = await signPayload(config.sessionSecret, encodedPayload);
+  const signature = await signPayload(normalizeSecretValue(config.sessionSecret), encodedPayload);
   return `${encodedPayload}.${signature}`;
 }
 
@@ -117,7 +128,7 @@ export async function verifySessionToken(env: Env, token: string): Promise<{ use
   }
 
   const [encodedPayload, providedSignature] = token.split(".", 2);
-  const expectedSignature = await signPayload(config.sessionSecret, encodedPayload);
+  const expectedSignature = await signPayload(normalizeSecretValue(config.sessionSecret), encodedPayload);
 
   if (providedSignature !== expectedSignature) {
     return null;

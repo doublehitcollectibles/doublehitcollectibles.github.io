@@ -195,8 +195,16 @@ async function handleAuthLogin(request: Request, env: Env): Promise<Response> {
     return json({ error: "Invalid credentials." }, { status: 401, headers: corsHeaders() });
   }
 
-  const token = await createSessionToken(env, username);
-  return json({ ok: true, token, user: { username } }, { headers: corsHeaders() });
+  try {
+    const token = await createSessionToken(env, username);
+    return json({ ok: true, token, user: { username } }, { headers: corsHeaders() });
+  } catch (error) {
+    console.error("Failed to create admin session token.", error);
+    return json(
+      { error: "Admin authentication is misconfigured. Reset the Worker auth secrets and redeploy." },
+      { status: 500, headers: corsHeaders() },
+    );
+  }
 }
 
 async function handleAuthSession(request: Request, env: Env): Promise<Response> {
