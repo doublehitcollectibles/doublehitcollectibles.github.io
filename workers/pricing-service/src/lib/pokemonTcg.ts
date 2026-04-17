@@ -151,6 +151,16 @@ function computeOwnershipMetrics(currentPrice: number | null, ownership: OwnedCo
   };
 }
 
+function firstNumericPrice(values: Array<number | null | undefined>): number | null {
+  for (const value of values) {
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 function selectPrice(card: PokemonCard, preferredPriceType?: string) {
   const tcgplayerPrices = card.tcgplayer?.prices || null;
   const cardmarket = card.cardmarket?.prices || null;
@@ -167,17 +177,29 @@ function selectPrice(card: PokemonCard, preferredPriceType?: string) {
 
   if (tcgplayerPrices) {
     const availableTypes = Object.keys(tcgplayerPrices);
-    const chosenType = preferredOrder.find((type) => availableTypes.includes(type)) || availableTypes[0];
-    const selected = tcgplayerPrices[chosenType];
+    const orderedTypes = [
+      ...preferredOrder.filter((type) => availableTypes.includes(type)),
+      ...availableTypes.filter((type) => !preferredOrder.includes(type)),
+    ];
 
-    if (selected) {
-      const currentPrice =
-        selected.market ??
-        selected.mid ??
-        selected.low ??
-        selected.high ??
-        selected.directLow ??
-        null;
+    for (const chosenType of orderedTypes) {
+      const selected = tcgplayerPrices[chosenType];
+
+      if (!selected) {
+        continue;
+      }
+
+      const currentPrice = firstNumericPrice([
+        selected.market,
+        selected.mid,
+        selected.low,
+        selected.high,
+        selected.directLow,
+      ]);
+
+      if (currentPrice == null) {
+        continue;
+      }
 
       return {
         priceType: chosenType,
@@ -197,7 +219,12 @@ function selectPrice(card: PokemonCard, preferredPriceType?: string) {
   }
 
   if (cardmarket) {
-    const currentPrice = cardmarket.avg30 ?? cardmarket.trendPrice ?? cardmarket.averageSellPrice ?? null;
+    const currentPrice = firstNumericPrice([
+      cardmarket.avg30,
+      cardmarket.trendPrice,
+      cardmarket.averageSellPrice,
+      cardmarket.lowPrice,
+    ]);
 
     return {
       priceType: preferredPriceType || "averageSellPrice",

@@ -45,19 +45,6 @@ page_class: collection-page
     </form>
   </header>
 
-  <section class="collection-summary" data-collection-summary></section>
-
-  <section class="collection-grid-wrap">
-    <div class="collection-section-heading">
-      <h2>Tracked Collection</h2>
-      <p>Your owned cards and products, rendered in a collection grid with current pricing and movement at a glance.</p>
-    </div>
-    <div class="collection-grid" data-owned-grid></div>
-    <div class="collection-empty" data-owned-empty hidden>
-      Sign in on the manage page to add cards to your Cloudflare-backed collection inventory.
-    </div>
-  </section>
-
   <section class="collection-search">
     <div class="collection-section-heading">
       <h2>Card Explorer</h2>
@@ -74,6 +61,19 @@ page_class: collection-page
     </div>
     <div class="collection-detail-panel" data-card-detail-panel>
       Choose a card to inspect its artwork, set details, weaknesses, attacks, legality, and market profile.
+    </div>
+  </section>
+
+  <section class="collection-summary" data-collection-summary></section>
+
+  <section class="collection-grid-wrap">
+    <div class="collection-section-heading">
+      <h2>Tracked Collection</h2>
+      <p>Your owned cards and products, rendered in a collection grid with current pricing and movement at a glance.</p>
+    </div>
+    <div class="collection-grid" data-owned-grid></div>
+    <div class="collection-empty" data-owned-empty hidden>
+      Sign in on the manage page to add cards to your Cloudflare-backed collection inventory.
     </div>
   </section>
 </section>
