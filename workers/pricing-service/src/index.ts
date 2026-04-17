@@ -1,0 +1,425 @@
+import { getPricingConfig, isAuthorizedAdmin } from "./config";
+import { createSessionToken, requireAuthenticatedSession, verifyAdminPassword } from "./lib/auth";
+import { getCachedPricingSummary, putCachedPricingSummary } from "./lib/cache";
+import { deleteCollectionCard, insertCollectionCard, listCollectionCards, updateCollectionCard } from "./lib/collectionCardsDb";
+import { getLatestPricingSummary, listWatchlist, upsertWatchlistEntry } from "./lib/db";
+import { getOwnedCollection, getTrackedPokemonEntries } from "./lib/ownedCollection";
+import { normalizeCardQuery } from "./lib/query";
+import { json } from "./lib/response";
+import {
+  getPokemonCardDetail,
+  getStoredCollectionCards,
+  refreshTrackedPokemonCollection,
+  searchPokemonCards,
+} from "./lib/pokemonTcg";
+import { PricingLock } from "./durableObjects/PricingLock";
+import { refreshPricingJob } from "./pipeline/refresh";
+import { enqueueDueWatchlistRefreshes } from "./pipeline/watchlist";
+import type { Env, OwnedCollectionEntry, PricingJob } from "./types";
+
+export { PricingLock };
+
+async function enqueueRefresh(env: Env, job: PricingJob): Promise<void> {
+  await env.PRICING_QUEUE.send(job);
+}
+
+function corsHeaders(): HeadersInit {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "access-control-allow-headers": "authorization, content-type",
+  };
+}
+
+async function getAllTrackedPokemonEntries(env: Env): Promise<OwnedCollectionEntry[]> {
+  const staticEntries = getTrackedPokemonEntries();
+  const storedEntries = await listCollectionCards(env.PRICING_DB);
+  return [...staticEntries, ...storedEntries];
+}
+
+async function handlePriceRequest(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const rawQuery = url.searchParams.get("q");
+
+  if (!rawQuery) {
+    return json({ error: "Missing q parameter." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const query = normalizeCardQuery(rawQuery);
+
+  if (!query.normalized) {
+    return json({ error: "Search query could not be normalized." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const cached = await getCachedPricingSummary(env, query.normalized);
+
+  if (cached?.freshness === "fresh") {
+    return json(
+      {
+        status: "fresh",
+        refreshing: false,
+        summary: cached.record.summary,
+      },
+      { headers: corsHeaders() },
+    );
+  }
+
+  const refreshJob: PricingJob = {
+    query: query.display,
+    normalizedQuery: query.normalized,
+    reason: cached ? "stale_refresh" : "search_miss",
+    enqueuedAt: new Date().toISOString(),
+  };
+
+  await enqueueRefresh(env, refreshJob);
+
+  if (cached) {
+    return json(
+      {
+        status: "stale",
+        refreshing: true,
+        summary: cached.record.summary,
+      },
+      { headers: corsHeaders() },
+    );
+  }
+
+  const latest = await getLatestPricingSummary(env.PRICING_DB, query.normalized);
+  const config = getPricingConfig(env);
+
+  if (latest) {
+    await putCachedPricingSummary(env, latest, config);
+    return json(
+      {
+        status: "stale",
+        refreshing: true,
+        summary: latest,
+      },
+      { headers: corsHeaders() },
+    );
+  }
+
+  return json(
+    {
+      status: "pending",
+      refreshing: true,
+      query: query.display,
+      normalizedQuery: query.normalized,
+    },
+    { status: 202, headers: corsHeaders() },
+  );
+}
+
+async function handleRefreshRequest(request: Request, env: Env): Promise<Response> {
+  const config = getPricingConfig(env);
+
+  if (!isAuthorizedAdmin(request, config)) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const body = (await request.json()) as { query?: string };
+  const rawQuery = body.query?.trim();
+
+  if (!rawQuery) {
+    return json({ error: "Missing query in request body." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const result = await refreshPricingJob(env, {
+    query: rawQuery,
+    reason: "admin_force",
+    force: true,
+    enqueuedAt: new Date().toISOString(),
+  });
+
+  return json(result, { headers: corsHeaders() });
+}
+
+async function handleWatchlistList(request: Request, env: Env): Promise<Response> {
+  const config = getPricingConfig(env);
+
+  if (!isAuthorizedAdmin(request, config)) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const watchlist = await listWatchlist(env.PRICING_DB);
+  return json({ watchlist }, { headers: corsHeaders() });
+}
+
+async function handleWatchlistUpsert(request: Request, env: Env): Promise<Response> {
+  const config = getPricingConfig(env);
+
+  if (!isAuthorizedAdmin(request, config)) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const body = (await request.json()) as { query?: string; refreshEveryHours?: number };
+  const rawQuery = body.query?.trim();
+
+  if (!rawQuery) {
+    return json({ error: "Missing query in request body." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const query = normalizeCardQuery(rawQuery);
+  const refreshEveryHours = Math.max(1, Math.min(24, Math.trunc(body.refreshEveryHours ?? 4)));
+  await upsertWatchlistEntry(env.PRICING_DB, query.display, query.normalized, refreshEveryHours);
+  await enqueueRefresh(env, {
+    query: query.display,
+    normalizedQuery: query.normalized,
+    reason: "watchlist",
+    enqueuedAt: new Date().toISOString(),
+  });
+
+  return json(
+    {
+      ok: true,
+      query: query.display,
+      normalizedQuery: query.normalized,
+      refreshEveryHours,
+    },
+    { headers: corsHeaders() },
+  );
+}
+
+async function handleAuthLogin(request: Request, env: Env): Promise<Response> {
+  const body = (await request.json()) as { username?: string; password?: string };
+  const username = body.username?.trim() ?? "";
+  const password = body.password ?? "";
+
+  if (!username || !password) {
+    return json({ error: "Username and password are required." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const ok = await verifyAdminPassword(env, username, password);
+
+  if (!ok) {
+    return json({ error: "Invalid credentials." }, { status: 401, headers: corsHeaders() });
+  }
+
+  const token = await createSessionToken(env, username);
+  return json({ ok: true, token, user: { username } }, { headers: corsHeaders() });
+}
+
+async function handleAuthSession(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ authenticated: false }, { status: 401, headers: corsHeaders() });
+  }
+
+  return json({ authenticated: true, user: session }, { headers: corsHeaders() });
+}
+
+function parseCollectionCardBody(body: Record<string, unknown>): OwnedCollectionEntry {
+  return {
+    cardId: String(body.cardId || "").trim(),
+    label: body.label ? String(body.label) : undefined,
+    quantity: body.quantity != null ? Number(body.quantity) : 1,
+    purchasePrice: body.purchasePrice != null && body.purchasePrice !== "" ? Number(body.purchasePrice) : undefined,
+    purchaseDate: body.purchaseDate ? String(body.purchaseDate) : undefined,
+    priceType: body.priceType ? String(body.priceType) : undefined,
+    condition: body.condition ? String(body.condition) : undefined,
+    notes: body.notes ? String(body.notes) : undefined,
+  };
+}
+
+async function handleCollectionCardsGet(_request: Request, env: Env): Promise<Response> {
+  const baseCollection = getOwnedCollection();
+  const cards = await getStoredCollectionCards(env);
+
+  return json(
+    {
+      collectionName: baseCollection.collectionName ?? "Double Hit Collection",
+      currency: baseCollection.currency ?? "USD",
+      cards,
+    },
+    { headers: corsHeaders() },
+  );
+}
+
+async function handleCollectionCardsAdminGet(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const cards = await listCollectionCards(env.PRICING_DB);
+  return json({ cards }, { headers: corsHeaders() });
+}
+
+async function handleCollectionCardsCreate(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const body = (await request.json()) as Record<string, unknown>;
+  const entry = parseCollectionCardBody(body);
+
+  if (!entry.cardId) {
+    return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
+  }
+
+  await insertCollectionCard(env.PRICING_DB, entry);
+  await refreshTrackedPokemonCollection(env, [entry]);
+  return json({ ok: true }, { headers: corsHeaders() });
+}
+
+async function handleCollectionCardsUpdate(request: Request, env: Env, id: number): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const body = (await request.json()) as Record<string, unknown>;
+  const entry = parseCollectionCardBody(body);
+
+  if (!entry.cardId) {
+    return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
+  }
+
+  await updateCollectionCard(env.PRICING_DB, id, entry);
+  await refreshTrackedPokemonCollection(env, [entry]);
+  return json({ ok: true }, { headers: corsHeaders() });
+}
+
+async function handleCollectionCardsDelete(request: Request, env: Env, id: number): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  await deleteCollectionCard(env.PRICING_DB, id);
+  return json({ ok: true }, { headers: corsHeaders() });
+}
+
+async function handlePokemonCardSearch(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const query = url.searchParams.get("q") ?? "";
+
+  if (!query.trim()) {
+    return json({ cards: [] }, { headers: corsHeaders() });
+  }
+
+  const cards = await searchPokemonCards(env, query);
+  return json({ cards }, { headers: corsHeaders() });
+}
+
+async function handlePokemonCardDetail(request: Request, env: Env, cardId: string): Promise<Response> {
+  const url = new URL(request.url);
+  const priceType = url.searchParams.get("priceType") ?? undefined;
+  const ownership = priceType ? { cardId, priceType } : { cardId };
+  const card = await getPokemonCardDetail(env, cardId, ownership, false);
+  return json({ card }, { headers: corsHeaders() });
+}
+
+const worker: ExportedHandler<Env, PricingJob> = {
+  async fetch(request, env): Promise<Response> {
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split("/").filter(Boolean);
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders() });
+    }
+
+    if (request.method === "GET" && url.pathname === "/health") {
+      return json(
+        {
+          ok: true,
+          service: "doublehit-pricing-service",
+          now: new Date().toISOString(),
+        },
+        { headers: corsHeaders() },
+      );
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/price") {
+      return handlePriceRequest(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/refresh") {
+      return handleRefreshRequest(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/watchlist") {
+      return handleWatchlistList(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/watchlist") {
+      return handleWatchlistUpsert(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/auth/login") {
+      return handleAuthLogin(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/auth/session") {
+      return handleAuthSession(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/auth/logout") {
+      return json({ ok: true }, { headers: corsHeaders() });
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/collection/cards") {
+      return handleCollectionCardsGet(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/collection/cards") {
+      return handleCollectionCardsAdminGet(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/collection/cards") {
+      return handleCollectionCardsCreate(request, env);
+    }
+
+    if (pathParts[0] === "api" && pathParts[1] === "admin" && pathParts[2] === "collection" && pathParts[3] === "cards" && pathParts[4]) {
+      const id = Number.parseInt(pathParts[4], 10);
+
+      if (!Number.isFinite(id)) {
+        return json({ error: "Invalid collection card id." }, { status: 400, headers: corsHeaders() });
+      }
+
+      if (request.method === "PUT") {
+        return handleCollectionCardsUpdate(request, env, id);
+      }
+
+      if (request.method === "DELETE") {
+        return handleCollectionCardsDelete(request, env, id);
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/pokemon/cards/search") {
+      return handlePokemonCardSearch(request, env);
+    }
+
+    if (request.method === "GET" && pathParts[0] === "api" && pathParts[1] === "pokemon" && pathParts[2] === "cards" && pathParts[3]) {
+      return handlePokemonCardDetail(request, env, pathParts[3]);
+    }
+
+    return json({ error: "Not found" }, { status: 404, headers: corsHeaders() });
+  },
+
+  async queue(batch, env, ctx): Promise<void> {
+    for (const message of batch.messages) {
+      ctx.waitUntil(
+        refreshPricingJob(env, message.body).catch((error) => {
+          console.error("Queue refresh failed", error);
+          throw error;
+        }),
+      );
+    }
+  },
+
+  async scheduled(_controller, env, ctx): Promise<void> {
+    ctx.waitUntil(enqueueDueWatchlistRefreshes(env, getPricingConfig(env)));
+    ctx.waitUntil(
+      getAllTrackedPokemonEntries(env).then((entries) => refreshTrackedPokemonCollection(env, entries)),
+    );
+  },
+};
+
+export default worker;

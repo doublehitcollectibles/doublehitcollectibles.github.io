@@ -6,3 +6,8 @@ package-json.lock
 _site
 node_modules
 _drafts
+.wrangler
+workers/*/node_modules
+workers/*/.wrangler
+workers/*/dist
+workers/*/.dev.vars

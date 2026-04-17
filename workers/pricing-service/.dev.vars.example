@@ -1,0 +1,7 @@
+ADMIN_API_KEY=replace-with-a-long-random-string
+ADMIN_USERNAME=change-me
+ADMIN_PASSWORD_HASH=
+ADMIN_PASSWORD=
+SESSION_SECRET=replace-with-a-long-random-random-string
+EBAY_SCRAPE_ENABLED=false
+POKEMON_TCG_API_KEY=

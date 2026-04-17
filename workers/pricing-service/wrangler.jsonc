@@ -1,0 +1,73 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "doublehit-pricing-service",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-16",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "PRICE_CACHE",
+      "id": "68cdec5f517344719b89ac216d8ce189",
+      "preview_id": "76dd4b3d8962489d853be46d70518ad9"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "PRICING_DB",
+      "database_name": "doublehit-pricing",
+      "database_id": "d5b90368-7b43-4718-a91a-bd5c25f4a35a",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "PRICING_QUEUE",
+        "queue": "doublehit-pricing-jobs"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "doublehit-pricing-jobs",
+        "max_batch_size": 10,
+        "max_batch_timeout": 10
+      }
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PRICING_LOCKS",
+        "class_name": "PricingLock"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "PricingLock"
+      ]
+    }
+  ],
+  "vars": {
+    "ADMIN_USERNAME": "Clutch",
+    "CACHE_TTL_MINUTES": "240",
+    "STALE_TTL_HOURS": "72",
+    "WATCHLIST_REFRESH_BATCH": "25",
+    "LOCK_TTL_SECONDS": "90",
+    "EBAY_SCRAPE_ENABLED": "false",
+    "EBAY_BASE_URL": "https://www.ebay.com",
+    "USER_AGENT": "DoubleHitCollectiblesPricingBot/0.1 (+https://doublehitcollectibles.github.io)",
+    "POKEMON_TCG_API_BASE_URL": "https://api.pokemontcg.io/v2",
+    "POKEMON_TCG_CACHE_TTL_MINUTES": "360",
+    "POKEMON_TCG_REFRESH_HOURS": "6"
+  }
+}
