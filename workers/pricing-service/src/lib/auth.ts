@@ -68,25 +68,31 @@ export async function verifyAdminPassword(env: Env, username: string, password: 
     return false;
   }
 
+  const normalizedPlainPassword = config.adminPassword ? normalizeSecretValue(config.adminPassword) : "";
+
   if (config.adminPasswordHash) {
-    const [iterationsValue, saltValue, hashValue] = normalizeSecretValue(config.adminPasswordHash).split(":");
+    const normalizedHashSecret = normalizeSecretValue(config.adminPasswordHash);
+    const [iterationsValue, saltValue, hashValue] = normalizedHashSecret.split(":");
     const iterations = Number.parseInt(normalizeSecretValue(iterationsValue || ""), 10);
 
-    if (!Number.isFinite(iterations) || iterations < 1 || !saltValue || !hashValue) {
-      return false;
-    }
+    if (Number.isFinite(iterations) && iterations > 0 && saltValue && hashValue) {
+      try {
+        const derived = await hashPassword(password, fromBase64Url(saltValue), iterations);
 
-    try {
-      const derived = await hashPassword(password, fromBase64Url(saltValue), iterations);
-      return timingSafeEquals(derived, fromBase64Url(hashValue));
-    } catch (error) {
-      console.error("Failed to verify admin password hash.", error);
-      return false;
+        if (await timingSafeEquals(derived, fromBase64Url(hashValue))) {
+          return true;
+        }
+      } catch (error) {
+        console.error("Failed to verify admin password hash.", error);
+      }
+    } else if (normalizedHashSecret === password) {
+      // Support a temporarily misconfigured hash secret that actually contains a plain password.
+      return true;
     }
   }
 
-  if (config.adminPassword) {
-    return normalizeSecretValue(config.adminPassword) === password;
+  if (normalizedPlainPassword) {
+    return normalizedPlainPassword === password;
   }
 
   return false;
