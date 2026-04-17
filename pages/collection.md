@@ -24,7 +24,13 @@ page_class: collection-page
       Preparing collection data...
     </div>
     <div class="collection-hero-actions">
-      <a class="collection-action-link" href="{{ '/manage-collection/' | relative_url }}">Manage Collection</a>
+      <a
+        class="collection-action-link"
+        href="{{ '/manage-collection/' | relative_url }}"
+        data-manage-collection-link
+      >
+        Manage Collection
+      </a>
     </div>
     <form class="collection-search-form collection-search-form--hero" data-card-search-form>
       <label class="screen-reader-text" for="collection-search-input">Search cards</label>

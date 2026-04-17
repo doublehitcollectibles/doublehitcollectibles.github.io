@@ -1,7 +1,14 @@
 import { getPricingConfig, isAuthorizedAdmin } from "./config";
 import { createSessionToken, requireAuthenticatedSession, verifyAdminPassword } from "./lib/auth";
 import { getCachedPricingSummary, putCachedPricingSummary } from "./lib/cache";
-import { deleteCollectionCard, insertCollectionCard, listCollectionCards, updateCollectionCard } from "./lib/collectionCardsDb";
+import {
+  claimCollectionCardsForOwner,
+  deleteCollectionCard,
+  insertCollectionCard,
+  listCollectionCards,
+  listCollectionCardsForOwner,
+  updateCollectionCard,
+} from "./lib/collectionCardsDb";
 import { getLatestPricingSummary, listWatchlist, upsertWatchlistEntry } from "./lib/db";
 import { getOwnedCollection, getTrackedPokemonEntries } from "./lib/ownedCollection";
 import { normalizeCardQuery } from "./lib/query";
@@ -184,6 +191,7 @@ async function handleAuthLogin(request: Request, env: Env): Promise<Response> {
   const body = (await request.json()) as { username?: string; password?: string };
   const username = body.username?.trim() ?? "";
   const password = body.password ?? "";
+  const configuredUsername = getPricingConfig(env).adminUsername?.trim() || username;
 
   if (!username || !password) {
     return json({ error: "Username and password are required." }, { status: 400, headers: corsHeaders() });
@@ -196,8 +204,8 @@ async function handleAuthLogin(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const token = await createSessionToken(env, username);
-    return json({ ok: true, token, user: { username } }, { headers: corsHeaders() });
+    const token = await createSessionToken(env, configuredUsername);
+    return json({ ok: true, token, user: { username: configuredUsername } }, { headers: corsHeaders() });
   } catch (error) {
     console.error("Failed to create admin session token.", error);
     return json(
@@ -251,7 +259,8 @@ async function handleCollectionCardsAdminGet(request: Request, env: Env): Promis
     return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
   }
 
-  const cards = await listCollectionCards(env.PRICING_DB);
+  await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
+  const cards = await listCollectionCardsForOwner(env.PRICING_DB, session.username);
   return json({ cards }, { headers: corsHeaders() });
 }
 
@@ -269,7 +278,8 @@ async function handleCollectionCardsCreate(request: Request, env: Env): Promise<
     return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
   }
 
-  await insertCollectionCard(env.PRICING_DB, entry);
+  await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
+  await insertCollectionCard(env.PRICING_DB, session.username, entry);
   await refreshTrackedPokemonCollection(env, [entry]);
   return json({ ok: true }, { headers: corsHeaders() });
 }
@@ -288,7 +298,16 @@ async function handleCollectionCardsUpdate(request: Request, env: Env, id: numbe
     return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
   }
 
-  await updateCollectionCard(env.PRICING_DB, id, entry);
+  await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
+  const updated = await updateCollectionCard(env.PRICING_DB, id, session.username, entry);
+
+  if (!updated) {
+    return json(
+      { error: "This collection card was not found for the signed-in user." },
+      { status: 404, headers: corsHeaders() },
+    );
+  }
+
   await refreshTrackedPokemonCollection(env, [entry]);
   return json({ ok: true }, { headers: corsHeaders() });
 }
@@ -300,7 +319,16 @@ async function handleCollectionCardsDelete(request: Request, env: Env, id: numbe
     return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
   }
 
-  await deleteCollectionCard(env.PRICING_DB, id);
+  await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
+  const deleted = await deleteCollectionCard(env.PRICING_DB, id, session.username);
+
+  if (!deleted) {
+    return json(
+      { error: "This collection card was not found for the signed-in user." },
+      { status: 404, headers: corsHeaders() },
+    );
+  }
+
   return json({ ok: true }, { headers: corsHeaders() });
 }
 

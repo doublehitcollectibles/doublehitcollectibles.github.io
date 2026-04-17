@@ -148,6 +148,7 @@ export interface OwnedCollectionFile {
 export interface CollectionCardRecord extends OwnedCollectionEntry {
   id: number;
   cardId: string;
+  ownerUsername?: string;
   createdAt: string;
   updatedAt: string;
 }
