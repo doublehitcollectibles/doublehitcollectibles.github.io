@@ -5,7 +5,7 @@ layout: compress
 <!DOCTYPE html>
 <html lang="{{ site.language }}" class="no-js">
     {% include head.html %}
-    <body class="has-push-menu{% if page.page_class %} {{ page.page_class }}{% endif %}" data-baseurl="{{ site.baseurl }}">
+    <body class="has-push-menu{% if page.page_class %} {{ page.page_class }}{% endif %}" data-baseurl="{{ site.baseurl }}" data-admin-api-base="{{ site.pokemon_api_base_url | default: '' }}">
         {% include svg-icons.html %}
         {% include header.html %}
             <section class="content">

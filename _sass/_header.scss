@@ -35,12 +35,12 @@ body {
     top: 50%;
     left: rem(54px);
     transform: translateY(-50%);
-    max-width: calc(100% - #{rem(108px)});
+    max-width: calc(100% - #{rem(176px)});
     transition: left 0.7s ease, transform 0.7s ease, max-width 0.7s ease;
 
     @include media(">=sm") {
       left: rem(72px);
-      max-width: calc(100% - #{rem(168px)});
+      max-width: calc(100% - #{rem(264px)});
     }
 
     .logo-link {
@@ -89,10 +89,10 @@ body {
     .logo {
       left: 50%;
       transform: translate(-50%, -50%);
-      max-width: calc(100% - #{rem(144px)});
+      max-width: calc(100% - #{rem(208px)});
 
       @include media(">=sm") {
-        max-width: calc(100% - #{rem(224px)});
+        max-width: calc(100% - #{rem(336px)});
       }
     }
 
@@ -164,11 +164,13 @@ body {
     justify-content: flex-end;
     gap: rem(10px);
     z-index: 4;
+    max-width: calc(100% - #{rem(88px)});
     transition: transform 0.7s ease, right 0.7s ease;
 
     @include media(">=sm") {
       right: rem(20px);
       gap: rem(12px);
+      max-width: calc(100% - #{rem(112px)});
     }
   }
 
@@ -180,6 +182,44 @@ body {
 
   .dosearch {
     padding: 0;
+  }
+
+  .header-user-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: rem(32px);
+    max-width: rem(120px);
+    padding: rem(6px) rem(10px);
+    border-radius: rem(999px);
+    border: rem(1px) solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.08);
+    color: $accentDark;
+    font-size: rem(12px);
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+
+    @include media(">=sm") {
+      max-width: rem(168px);
+      padding: rem(7px) rem(12px);
+      font-size: rem(13px);
+    }
+
+    &[hidden] {
+      display: none !important;
+    }
+  }
+
+  &.is-scrolled {
+    .header-user-link {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.28);
+    }
   }
 
   .icon-menu,
@@ -230,6 +270,12 @@ body.light:not(.main-page) {
     .logo a,
     .version {
       color: $primaryDark;
+    }
+
+    .header-user-link {
+      color: $primaryDark;
+      border-color: rgba(17, 17, 17, 0.16);
+      background: rgba(17, 17, 17, 0.05);
     }
   }
 }

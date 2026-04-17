@@ -7,6 +7,7 @@
 
   const apiBase = (app.dataset.apiBase || "").trim().replace(/\/$/, "");
   const tokenStorageKey = "doublehit.collection.admin.token";
+  const requiresLogin = new URL(window.location.href).searchParams.get("required") === "1";
 
   const elements = {
     status: app.querySelector("[data-admin-status]"),
@@ -81,6 +82,36 @@
     elements.loginFeedback.hidden = false;
     elements.loginFeedback.textContent = message;
     elements.loginFeedback.setAttribute("data-mode", mode || "info");
+  }
+
+  function notifyAuthChanged(options) {
+    const detail = options || {};
+    window.dispatchEvent(
+      new CustomEvent("doublehit-admin-auth-changed", {
+        detail: {
+          token: typeof detail.token === "string" ? detail.token : state.token,
+          username: typeof detail.username === "string" ? detail.username : state.user?.username || "",
+          signedOut: Boolean(detail.signedOut),
+        },
+      }),
+    );
+  }
+
+  function focusLoginField() {
+    if (elements.loginForm?.elements?.username && typeof elements.loginForm.elements.username.focus === "function") {
+      elements.loginForm.elements.username.focus();
+    }
+  }
+
+  function clearRequiredLoginFlag() {
+    const url = new URL(window.location.href);
+
+    if (!url.searchParams.has("required")) {
+      return;
+    }
+
+    url.searchParams.delete("required");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
   }
 
   function buildHeaders(includeAuth) {
@@ -487,6 +518,11 @@
     state.user = payload.user || null;
     elements.sessionCopy.textContent = `Signed in as ${payload.user?.username || username}.`;
     setAuthenticated(true);
+    notifyAuthChanged({
+      token: payload.token,
+      username: payload.user?.username || username,
+    });
+    clearRequiredLoginFlag();
     renderStatus("Admin session ready. You can now search and save cards.", "worker");
     await loadStoredCards();
   }
@@ -495,6 +531,7 @@
     if (!apiBase) {
       setAuthenticated(false);
       setWorkspaceEnabled(false);
+      notifyAuthChanged({ signedOut: true, token: "" });
       renderLoginFeedback("Set pokemon_api_base_url before using the admin login.", "error");
       renderStatus("Set site.pokemon_api_base_url to your Cloudflare Worker URL to use the admin workspace.", "error");
       return;
@@ -504,8 +541,19 @@
 
     if (!state.token) {
       setAuthenticated(false);
-      renderLoginFeedback("Use your configured admin username and plain password to sign in.", "info");
-      renderStatus("Sign in to manage the Cloudflare-backed collection.", "info");
+      renderLoginFeedback(
+        requiresLogin
+          ? "Admin login required before you can manage the collection."
+          : "Use your configured admin username and plain password to sign in.",
+        requiresLogin ? "error" : "info",
+      );
+      renderStatus(
+        requiresLogin
+          ? "Sign in with the configured admin account to open the collection workspace."
+          : "Sign in to manage the Cloudflare-backed collection.",
+        requiresLogin ? "error" : "info",
+      );
+      focusLoginField();
       return;
     }
 
@@ -518,13 +566,20 @@
       state.user = payload.user || null;
       elements.sessionCopy.textContent = `Signed in as ${payload.user?.username || "admin"}.`;
       setAuthenticated(true);
+      notifyAuthChanged({
+        token: state.token,
+        username: payload.user?.username || "admin",
+      });
+      clearRequiredLoginFlag();
       renderStatus("Admin session restored.", "worker");
       await loadStoredCards();
     } catch (error) {
       setToken("");
       setAuthenticated(false);
+      notifyAuthChanged({ signedOut: true, token: "" });
       renderLoginFeedback("Your previous admin session expired. Sign in again.", "error");
       renderStatus(error instanceof Error ? error.message : "Session expired. Sign in again.", "error");
+      focusLoginField();
     }
   }
 
@@ -541,7 +596,9 @@
     resetForm(true);
     renderLoginFeedback("You have been signed out.", "info");
     setAuthenticated(false);
+    notifyAuthChanged({ signedOut: true, token: "" });
     renderStatus("Signed out. Sign in to manage the Cloudflare-backed collection.", "info");
+    focusLoginField();
   }
 
   function bindEvents() {
