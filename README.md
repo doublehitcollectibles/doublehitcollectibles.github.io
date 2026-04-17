@@ -69,6 +69,22 @@ That would allow the site to present the collection in a way that feels closer t
 
 Collectr-style tracking remains a concept under evaluation. If that direction is pursued, it should be implemented only through a stable and permitted pricing source, export workflow, or API that is reliable and compatible with the provider's access model and terms.
 
+## Pokemon TCG API Integration
+
+The repository now includes a collection experience powered by the official Pokemon TCG API and a Cloudflare backend.
+
+That integration includes:
+
+- a collection page at `/collection/`
+- a secure manage page at `/manage-collection/`
+- website login backed by worker-configured credentials
+- Cloudflare D1 storage for owned-card records
+- direct API fallback for current card data
+- a Cloudflare Workers backend that can cache card detail and store price snapshots over time
+- a local JSON fallback at `assets/data/owned-cards.json` when the worker URL is not configured
+
+The collection page is documented in [docs/pokemon-collection.md](docs/pokemon-collection.md), and the worker backend is documented in [docs/pricing-service.md](docs/pricing-service.md).
+
 ## Repository Purpose
 
 This repository powers the public website for Double Hit Collectibles and contains the content, layouts, styling, assets, and deployment configuration used by the live GitHub Pages site.
@@ -80,6 +96,7 @@ This repository powers the public website for Double Hit Collectibles and contai
 - Sass for custom styling
 - JavaScript for interactive site behavior
 - GitHub Actions for deployment automation
+- Cloudflare Workers, D1, KV, Queues, and Durable Objects for the pricing backend
 
 ## Repository Structure
 
@@ -89,7 +106,24 @@ This repository powers the public website for Double Hit Collectibles and contai
 - `_sass/` contains the site's styling and component-level presentation
 - `assets/` contains compiled assets and image files used by the live site
 - `src/` contains source configuration and build inputs
+- `workers/pricing-service/` contains the Cloudflare pricing API, queue consumer, scheduler, and schema
 - `.github/workflows/pages.yml` contains the GitHub Pages deployment workflow
+
+## Pricing Backend
+
+The repository now includes a dedicated Cloudflare Workers collection and pricing service for the live site.
+
+That backend is designed to:
+
+- authenticate the site owner with a worker-managed username and password
+- search the Pokemon TCG API for cards to add to the collection
+- store collection entries in Cloudflare D1
+- return public collection cards for the `/collection/` page
+- store repeated price snapshots so history can be shown over time
+
+The first implementation lives in [workers/pricing-service/README.md](workers/pricing-service/README.md) with additional architecture notes in [docs/pricing-service.md](docs/pricing-service.md).
+
+The pricing pipeline is intentionally provider-oriented so Double Hit Collectibles can expand the collection experience over time without rebuilding the rest of the backend.
 
 ## Local Development
 
