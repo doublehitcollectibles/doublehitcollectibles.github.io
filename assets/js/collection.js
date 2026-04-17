@@ -102,6 +102,18 @@
       .trim();
   }
 
+  function firstNumericPrice(values) {
+    const candidates = Array.isArray(values) ? values : [];
+
+    for (const value of candidates) {
+      if (typeof value === "number" && !Number.isNaN(value)) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
   function buildPokemonQuery(input) {
     const normalized = normalizeText(input);
 
@@ -140,20 +152,34 @@
 
     if (tcgplayerPrices) {
       const availableTypes = Object.keys(tcgplayerPrices);
-      const chosenType = preferredOrder.find((type) => availableTypes.includes(type)) || availableTypes[0];
-      const selected = tcgplayerPrices[chosenType];
+      const orderedTypes = [
+        ...preferredOrder.filter((type) => availableTypes.includes(type)),
+        ...availableTypes.filter((type) => !preferredOrder.includes(type)),
+      ];
 
-      if (selected) {
+      for (const chosenType of orderedTypes) {
+        const selected = tcgplayerPrices[chosenType];
+
+        if (!selected) {
+          continue;
+        }
+
+        const currentPrice = firstNumericPrice([
+          selected.market,
+          selected.mid,
+          selected.low,
+          selected.high,
+          selected.directLow,
+        ]);
+
+        if (currentPrice == null) {
+          continue;
+        }
+
         return {
           priceType: chosenType,
           currency: "USD",
-          currentPrice:
-            selected.market ??
-            selected.mid ??
-            selected.low ??
-            selected.high ??
-            selected.directLow ??
-            null,
+          currentPrice,
           sourceLabel: selected.market != null ? "TCGplayer Market" : "TCGplayer",
           metrics: {
             low: selected.low ?? null,
@@ -168,10 +194,17 @@
     }
 
     if (cardmarket) {
+      const currentPrice = firstNumericPrice([
+        cardmarket.avg30,
+        cardmarket.trendPrice,
+        cardmarket.averageSellPrice,
+        cardmarket.lowPrice,
+      ]);
+
       return {
         priceType: preferredPriceType || "averageSellPrice",
         currency: "EUR",
-        currentPrice: cardmarket.avg30 ?? cardmarket.trendPrice ?? cardmarket.averageSellPrice ?? null,
+        currentPrice,
         sourceLabel: cardmarket.avg30 != null ? "Cardmarket Avg30" : "Cardmarket",
         metrics: {
           averageSellPrice: cardmarket.averageSellPrice ?? null,
