@@ -981,7 +981,7 @@
     renderStatus(
       warning ||
         (mode === "worker"
-          ? "Worker-backed mode active. Collection cards and pricing history are being served from Cloudflare."
+          ? "Worker-backed mode active. Pokemon TCG market pricing is primary, with PriceCharting filling PSA 10 and missing market gaps."
           : "Direct Pokemon TCG API fallback mode active. Configure the worker URL to unlock server-side history and website-managed cards."),
       warning ? "error" : mode === "worker" ? "worker" : "fallback",
     );

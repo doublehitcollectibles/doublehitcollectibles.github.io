@@ -8,6 +8,7 @@ import type {
 interface PriceChartingLookupCard {
   name: string;
   number?: string;
+  preferredPriceType?: string;
   set?: {
     name?: string;
   };
@@ -33,6 +34,24 @@ const DEFAULT_HEADERS: Record<string, string> = {
 
 function normalizeQueryPart(value: string | undefined): string {
   return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function decodeHtmlEntities(value: string | undefined): string {
+  return String(value || "")
+    .replace(/&#39;/g, "'")
+    .replace(/&#43;/g, "+")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function normalizeForMatch(value: string | undefined): string {
+  return normalizeQueryPart(decodeHtmlEntities(value))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -105,12 +124,40 @@ function dedupeQueries(queries: string[]): string[] {
   });
 }
 
+function toVariantHints(priceType: string | undefined): string[] {
+  const normalized = normalizeForMatch(priceType);
+
+  if (!normalized || normalized === "normal" || normalized === "unavailable") {
+    return [];
+  }
+
+  if (normalized.includes("reverse")) {
+    return ["reverse holo", "reverse holofoil"];
+  }
+
+  if (normalized.includes("1st edition")) {
+    return normalized.includes("holo") ? ["1st edition holo"] : ["1st edition"];
+  }
+
+  if (normalized.includes("holo")) {
+    return ["holo", "holofoil"];
+  }
+
+  return [normalized];
+}
+
 function buildSearchQueries(card: PriceChartingLookupCard): string[] {
   const name = normalizeQueryPart(card.name);
   const number = normalizeQueryPart(card.number);
   const setName = normalizeQueryPart(card.set?.name);
+  const variantHints = toVariantHints(card.preferredPriceType);
 
   return dedupeQueries([
+    ...variantHints.flatMap((hint) => [
+      `${name} ${hint} ${number} ${setName}`,
+      `${name} ${hint} ${number}`,
+      `${name} ${hint} ${setName}`,
+    ]),
     `${name} ${number} ${setName}`,
     `${name} ${number}`,
     `${name} ${setName}`,
@@ -130,7 +177,111 @@ async function fetchHtml(env: Env, url: string): Promise<Response> {
 
 function firstGamePath(html: string): string | null {
   const match = html.match(/href="(\/game\/[^"?]+(?:\?[^"]*)?)"/i);
-  return match?.[1] ? new URL(match[1], PRICECHARTING_BASE_URL).toString() : null;
+  return match?.[1] ? new URL(decodeHtmlEntities(match[1]), PRICECHARTING_BASE_URL).toString() : null;
+}
+
+function isProductPageHtml(html: string): boolean {
+  return /VGPC\.chart_data\s*=/.test(html) || /id="used_price"/i.test(html) || /id="manual_only_price"/i.test(html);
+}
+
+interface PriceChartingSearchCandidate {
+  url: string;
+  title: string;
+  setName: string;
+}
+
+function parseSearchCandidates(html: string): PriceChartingSearchCandidate[] {
+  const candidates: PriceChartingSearchCandidate[] = [];
+  const rowPattern =
+    /<tr id="product-\d+"[\s\S]*?<td class="title">[\s\S]*?<a href="(https:\/\/www\.pricecharting\.com\/game\/[^"]+)"[^>]*>\s*([^<]+?)<\/a>[\s\S]*?<div class="console-in-title">[\s\S]*?<a href="\/console\/[^"]+">\s*([^<]+?)\s*<\/a>/gi;
+
+  for (const match of html.matchAll(rowPattern)) {
+    const url = decodeHtmlEntities(match[1]).split("?")[0];
+    const title = normalizeQueryPart(decodeHtmlEntities(match[2]));
+    const setName = normalizeQueryPart(decodeHtmlEntities(match[3]));
+
+    if (!url || !title) {
+      continue;
+    }
+
+    candidates.push({ url, title, setName });
+  }
+
+  return candidates;
+}
+
+function includesAllTokens(haystack: string, tokens: string[]): boolean {
+  return tokens.every((token) => haystack.includes(token));
+}
+
+function overlapCount(tokens: string[], haystack: string): number {
+  return tokens.filter((token) => haystack.includes(token)).length;
+}
+
+function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingSearchCandidate): number {
+  const normalizedName = normalizeForMatch(card.name);
+  const normalizedNumber = normalizeForMatch(card.number);
+  const normalizedSet = normalizeForMatch(card.set?.name);
+  const normalizedTitle = normalizeForMatch(candidate.title);
+  const normalizedCandidateSet = normalizeForMatch(candidate.setName);
+  const variantHints = toVariantHints(card.preferredPriceType).map((hint) => normalizeForMatch(hint));
+  const nameTokens = normalizedName.split(" ").filter(Boolean);
+  const setTokens = normalizedSet.split(" ").filter(Boolean);
+  let score = 0;
+
+  if (normalizedNumber) {
+    if (new RegExp(`(^|\\s)${escapeRegex(normalizedNumber)}($|\\s)`).test(normalizedTitle)) {
+      score += 90;
+    } else if (candidate.url.toLowerCase().includes(`-${normalizedNumber}`)) {
+      score += 80;
+    }
+  }
+
+  if (normalizedName) {
+    if (normalizedTitle === normalizedName || normalizedTitle.startsWith(`${normalizedName} `)) {
+      score += 90;
+    } else if (includesAllTokens(normalizedTitle, nameTokens)) {
+      score += 72;
+    } else {
+      score += overlapCount(nameTokens, normalizedTitle) * 12;
+    }
+  }
+
+  if (normalizedSet) {
+    if (normalizedCandidateSet === normalizedSet) {
+      score += 70;
+    } else if (includesAllTokens(normalizedCandidateSet, setTokens)) {
+      score += 54;
+    } else {
+      score += overlapCount(setTokens, normalizedCandidateSet) * 9;
+    }
+  }
+
+  if (variantHints.length) {
+    const matchesVariant = variantHints.some((hint) => normalizedTitle.includes(hint));
+    score += matchesVariant ? 28 : -14;
+  } else if (/\b(reverse holo|reverse holofoil|1st edition|holofoil|holo)\b/.test(normalizedTitle)) {
+    score -= 12;
+  }
+
+  return score;
+}
+
+function bestCandidateUrl(html: string, card: PriceChartingLookupCard): string | null {
+  const candidates = parseSearchCandidates(html);
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  const best = candidates
+    .map((candidate) => ({
+      candidate,
+      score: scoreCandidate(card, candidate),
+    }))
+    .sort((left, right) => right.score - left.score)[0];
+
+  return best?.candidate.url ?? null;
 }
 
 async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Promise<PriceChartingProductPage | null> {
@@ -150,14 +301,14 @@ async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Prom
     const html = await response.text();
     const finalUrl = (response.url || searchUrl.toString()).split("?")[0];
 
-    if (finalUrl.includes("/game/")) {
+    if (finalUrl.includes("/game/") || isProductPageHtml(html)) {
       return {
         sourceUrl: finalUrl,
         html,
       };
     }
 
-    const fallbackUrl = firstGamePath(html);
+    const fallbackUrl = bestCandidateUrl(html, card) || firstGamePath(html);
 
     if (!fallbackUrl) {
       continue;

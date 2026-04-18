@@ -472,7 +472,12 @@ export async function searchPokemonCards(env: Env, input: string): Promise<Pokem
   const summaries = await Promise.all(
     cards.map(async (card) => {
       const basePricing = selectPrice(card);
-      const fallbackPricing = await fetchPriceChartingPricing(env, card).catch(() => null);
+      const fallbackPricing = await fetchPriceChartingPricing(env, {
+        name: card.name,
+        number: card.number,
+        set: card.set,
+        preferredPriceType: basePricing.priceType,
+      }).catch(() => null);
 
       return mapPokemonCardSummary(
         card,
@@ -529,7 +534,13 @@ export async function getPokemonCardDetail(
   }
 
   const card = await fetchPokemonCard(env, cardId);
-  const externalPricing = await fetchPriceChartingPricing(env, card).catch((error) => {
+  const basePricing = selectPrice(card, ownership?.priceType);
+  const externalPricing = await fetchPriceChartingPricing(env, {
+    name: card.name,
+    number: card.number,
+    set: card.set,
+    preferredPriceType: basePricing.priceType,
+  }).catch((error) => {
     console.error("PriceCharting enrichment failed.", error);
     return null;
   });
@@ -540,14 +551,14 @@ export async function getPokemonCardDetail(
     historyBefore,
     externalPricing
       ? {
-          pricing: selectPrice(card, ownership?.priceType),
+          pricing: basePricing,
           priceVariants: externalPricing.priceVariants,
           historySeries: externalPricing.historySeries,
           marketSourceUrl: externalPricing.sourceUrl,
           externalPricingChecked: true,
         }
       : {
-          pricing: selectPrice(card, ownership?.priceType),
+          pricing: basePricing,
           externalPricingChecked: true,
         },
   );
