@@ -901,26 +901,26 @@
             </div>
             <div class="collection-inline-detail-stats">
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">Raw</p>
-                <p class="collection-inline-detail-stat-value">${formatCurrency(rawPrice?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
+                <span class="collection-inline-detail-stat-label">Raw</span>
+                <span class="collection-inline-detail-stat-value">${formatCurrency(rawPrice?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</span>
               </article>
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">PSA10</p>
-                <p class="collection-inline-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
+                <span class="collection-inline-detail-stat-label">PSA10</span>
+                <span class="collection-inline-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</span>
               </article>
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">Cost</p>
-                <p class="collection-inline-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
+                <span class="collection-inline-detail-stat-label">Cost</span>
+                <span class="collection-inline-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</span>
               </article>
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">Return</p>
-                <p class="collection-inline-detail-stat-value">
+                <span class="collection-inline-detail-stat-label">Return</span>
+                <span class="collection-inline-detail-stat-value">
                   ${
                     ownership.deltaAmount != null
                       ? `${ownership.deltaAmount >= 0 ? "+" : ""}${formatCurrency(ownership.deltaAmount, card.pricing?.currency)}`
                       : "N/A"
                   }
-                </p>
+                </span>
               </article>
             </div>
             <div class="collection-inline-detail-history">
