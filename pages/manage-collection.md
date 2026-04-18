@@ -73,7 +73,7 @@ page_class: collection-page collection-admin-page
             </div>
           </div>
 
-          <form class="collection-search-form" data-admin-search-form>
+          <form class="collection-search-form collection-admin-search-form" data-admin-search-form>
             <label class="screen-reader-text" for="collection-admin-search-input">Search cards</label>
             <input
               id="collection-admin-search-input"
@@ -88,6 +88,7 @@ page_class: collection-page collection-admin-page
             Search for a card to start building your collection.
           </div>
           <div class="collection-grid collection-admin-results" data-admin-search-results></div>
+          <div class="collection-admin-search-pagination" data-admin-search-pagination hidden></div>
         </section>
 
         <section class="collection-admin-panel">
