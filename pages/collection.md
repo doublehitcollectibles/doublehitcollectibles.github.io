@@ -34,6 +34,8 @@ page_class: collection-page
     </div>
   </header>
 
+  <section class="collection-summary" data-collection-summary></section>
+
   <section class="collection-grid-wrap collection-grid-wrap--tracked">
     <div class="collection-section-heading">
       <h2>Tracked Collection</h2>
@@ -64,8 +66,6 @@ page_class: collection-page
     <div class="collection-search-feedback" data-search-feedback></div>
     <div class="collection-search-results" data-search-results></div>
   </section>
-
-  <section class="collection-summary" data-collection-summary></section>
 
   <section class="collection-detail" data-card-detail>
     <div class="collection-section-heading">
