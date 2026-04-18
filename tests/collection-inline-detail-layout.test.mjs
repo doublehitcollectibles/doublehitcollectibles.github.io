@@ -29,6 +29,20 @@ test("inline detail template keeps the selected-card title on the card instead o
   assert.doesNotMatch(inlineDetailBlock, /collection-inline-detail-copy/);
 });
 
+test("inline detail template renders compact stat rows with inline labels and values", () => {
+  const collectionSource = readFile("assets/js/collection.js");
+  const inlineDetailBlock = extractBetween(collectionSource, "function renderInlineDetail", "function renderStatus");
+
+  assert.match(
+    inlineDetailBlock,
+    /<article class="collection-inline-detail-stat">\s*<span class="collection-inline-detail-stat-label">Raw<\/span>\s*<span class="collection-inline-detail-stat-value">\$\{formatCurrency\(rawPrice\?\.currentPrice, rawPrice\?\.currency \|\| card\.pricing\?\.currency\)\}<\/span>\s*<\/article>/,
+  );
+  assert.match(
+    inlineDetailBlock,
+    /<article class="collection-inline-detail-stat">\s*<span class="collection-inline-detail-stat-label">PSA10<\/span>\s*<span class="collection-inline-detail-stat-value">\$\{formatCurrency\(psa10Price\?\.currentPrice, psa10Price\?\.currency \|\| card\.pricing\?\.currency\)\}<\/span>\s*<\/article>/,
+  );
+});
+
 test("inline detail styles keep the shell flush and the stat tiles compact", () => {
   const stylesheet = readFile("_sass/_collection.scss");
 
@@ -42,10 +56,18 @@ test("inline detail styles keep the shell flush and the stat tiles compact", () 
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stats\s*\{[\s\S]*?width:\s*min\(100%,\s*248px\);[\s\S]*?\}/,
+    /\.collection-inline-detail-stats\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?width:\s*min\(100%,\s*228px\);[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*18px;[\s\S]*?display:\s*flex;[\s\S]*?\}/,
+    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*14px;[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*auto minmax\(0,\s*1fr\);[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-inline-detail-stat-label\s*\{[\s\S]*?font-size:\s*6px;[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-inline-detail-stat-value\s*\{[\s\S]*?font-size:\s*8px;[\s\S]*?justify-self:\s*end;[\s\S]*?\}/,
   );
 });
