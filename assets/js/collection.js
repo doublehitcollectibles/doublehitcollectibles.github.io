@@ -405,6 +405,7 @@
   function renderMarketBlock(label, variant, delta) {
     const currency = variant?.currency || "USD";
     const hasPercent = typeof delta?.percent === "number" && Number.isFinite(delta.percent);
+    const hasDeltaAmount = typeof delta?.delta === "number" && Number.isFinite(delta.delta);
     const deltaClass =
       hasPercent && delta.percent > 0
         ? "collection-market-change collection-market-change--up"
@@ -418,8 +419,10 @@
         <strong class="collection-market-value">${formatCurrency(variant?.currentPrice, currency)}</strong>
         <span class="${deltaClass}">
           ${
-            hasPercent
-              ? `${delta.percent >= 0 ? "+" : ""}${formatPercent(delta.percent)}`
+            hasPercent && hasDeltaAmount
+              ? `${delta.delta >= 0 ? "+" : ""}${formatCurrency(delta.delta, currency)} (${formatPercent(delta.percent)})`
+              : hasPercent
+                ? `${delta.percent >= 0 ? "+" : ""}${formatPercent(delta.percent)}`
               : "No trend"
           }
         </span>
