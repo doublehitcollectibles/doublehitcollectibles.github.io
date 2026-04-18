@@ -674,14 +674,14 @@
   grid-area: stats;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 236px);
+  width: min(100%, 248px);
   gap: 3px;
   justify-self: start;
 }
 
 .collection-inline-detail-stat {
-  min-block-size: 20px;
-  padding: 2px 5px;
+  min-block-size: 18px;
+  padding: 1px 4px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   display: flex;
@@ -693,7 +693,7 @@
 
 .collection-inline-detail-stat-label {
   margin: 0;
-  font-size: 0.28rem;
+  font-size: 7px;
   line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -707,7 +707,7 @@
 .collection-inline-detail-stat-value {
   margin: 0;
   min-width: 0;
-  font-size: 0.46rem;
+  font-size: 10px;
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -719,7 +719,7 @@
 
 .collection-inline-detail-stat-copy,
 .collection-inline-detail-source {
-  font-size: 0.26rem;
+  font-size: 6px;
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
