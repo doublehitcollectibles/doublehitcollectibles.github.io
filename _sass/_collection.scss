@@ -62,7 +62,15 @@
 .collection-grid-wrap--tracked .collection-card-media {
   aspect-ratio: auto;
   min-height: 0;
-  margin-bottom: 10px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.collection-grid-wrap--tracked .collection-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .collection-grid-wrap--tracked .collection-card img {
@@ -75,15 +83,34 @@
 }
 
 .collection-grid-wrap--tracked .collection-card h3 {
+  margin: 0;
   font-size: 0.96rem;
+  line-height: 1.15;
+}
+
+.collection-grid-wrap--tracked .collection-card-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.32;
 }
 
 .collection-grid-wrap--tracked .collection-card-price {
+  margin-top: 0;
   font-size: 1.18rem;
 }
 
 .collection-grid-wrap--tracked .collection-movement {
+  margin-top: 0;
   font-size: 0.8rem;
+}
+
+.collection-grid-wrap--tracked .collection-card-badges {
+  margin: 0;
+}
+
+.collection-grid-wrap--tracked .collection-ownership-row {
+  margin-top: 6px;
+  padding-top: 8px;
 }
 
 .collection-grid-wrap--tracked .collection-empty {
