@@ -109,6 +109,18 @@
     return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
   }
 
+  function normalizeDisplayText(value) {
+    if (typeof value === "string") {
+      return value.trim();
+    }
+
+    if (value == null) {
+      return "";
+    }
+
+    return String(value).trim();
+  }
+
   function getGridColumnCount(target) {
     const isCompact = window.matchMedia("(max-width: 640px)").matches;
     const gap = isCompact ? 12 : 14;
@@ -316,6 +328,7 @@
   function mapCardPayload(card, ownership, history) {
     const pricing = selectPrice(card, ownership?.priceType);
     const setName = card?.set?.name || "Unknown Set";
+    const displayLabel = normalizeDisplayText(ownership?.label);
     const rawVariant =
       pricing.currentPrice != null
         ? {
@@ -332,7 +345,7 @@
     return {
       kind: "api",
       id: card.id,
-      title: ownership?.label || card.name,
+      title: displayLabel || card.name,
       cardName: card.name,
       subtitle: [setName, card?.rarity, card?.number].filter(Boolean).join(" | "),
       image: card?.images?.large || card?.images?.small || "",
@@ -369,12 +382,13 @@
 
   function mapCustomEntry(entry) {
     const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
+    const displayLabel = normalizeDisplayText(entry.label);
 
     return {
       kind: "custom",
       id: entry.id || entry.label || entry.cardId || `custom-${Math.random().toString(36).slice(2)}`,
-      title: entry.label || "Custom Collection Item",
-      cardName: entry.label || "Custom Collection Item",
+      title: displayLabel || "Custom Collection Item",
+      cardName: displayLabel || "Custom Collection Item",
       subtitle: [entry.category, entry.series, entry.variant].filter(Boolean).join(" | "),
       image: entry.image || "",
       thumbnail: entry.image || "",
@@ -764,7 +778,13 @@
   }
 
   function getCardDisplayTitle(card) {
-    return card?.title || card?.cardName || card?.name || card?.id || "Collection Item";
+    return (
+      normalizeDisplayText(card?.title) ||
+      normalizeDisplayText(card?.cardName) ||
+      normalizeDisplayText(card?.name) ||
+      normalizeDisplayText(card?.id) ||
+      "Collection Item"
+    );
   }
 
   function renderDetail(card) {
@@ -1086,7 +1106,7 @@
     if (ownership) {
       card.ownership = ownership;
       card.ownershipMetrics = computeOwnershipMetrics(card.pricing?.currentPrice ?? null, ownership);
-      card.title = ownership.label || card.cardName || card.title;
+      card.title = normalizeDisplayText(ownership.label) || getCardDisplayTitle(card);
     }
 
     return card;
