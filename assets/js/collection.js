@@ -865,7 +865,6 @@
         }
       : null);
     const psa10Price = getPriceVariant(card, "psa10");
-    const returnCopy = ownership.deltaPercent != null ? formatPercent(ownership.deltaPercent) : "Track purchase price";
     const badges = [
       card.supertype,
       card.rarity,
@@ -901,11 +900,11 @@
                 <p class="collection-inline-detail-stat-value">${formatCurrency(rawPrice?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
               </article>
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">PSA 10</p>
+                <p class="collection-inline-detail-stat-label">PSA10</p>
                 <p class="collection-inline-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
               </article>
               <article class="collection-inline-detail-stat">
-                <p class="collection-inline-detail-stat-label">Cost Basis</p>
+                <p class="collection-inline-detail-stat-label">Cost</p>
                 <p class="collection-inline-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
               </article>
               <article class="collection-inline-detail-stat">
@@ -917,7 +916,6 @@
                       : "N/A"
                   }
                 </p>
-                <p class="collection-inline-detail-stat-copy">${escapeHtml(returnCopy || "N/A")}</p>
               </article>
             </div>
             <div class="collection-inline-detail-history">
