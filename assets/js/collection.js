@@ -20,6 +20,8 @@
     detailPanel: app.querySelector("[data-card-detail-panel]"),
   };
 
+  const defaultDetailPanelMarkup = elements.detailPanel?.innerHTML || "";
+
   const gridLayoutApi = window.CollectionGridLayout || {
     buildInlineDetailLayout(cards) {
       return Array.isArray(cards) ? cards.map((card) => ({ type: "card", card })) : [];
@@ -879,9 +881,6 @@
         data-inline-detail-for="${escapeHtml(card.id)}"
       >
         <div class="collection-inline-detail-shell">
-          <div class="collection-inline-detail-media">
-            ${card.image ? `<img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}">` : ""}
-          </div>
           <div class="collection-inline-detail-header">
             <div class="collection-inline-detail-header-copy">
               <h3 class="collection-inline-detail-title">${escapeHtml(card.title)}</h3>
@@ -1020,6 +1019,11 @@
         const cardId = element.getAttribute("data-card-id");
         const selected = cards.find((card) => card.id === cardId);
 
+        if (state.inlineDetailTarget === targetKey && state.inlineDetailCardId === cardId) {
+          clearSelectedCard();
+          return;
+        }
+
         if (selected) {
           selectCard(selected, { inlineTarget: targetKey }).catch((error) => {
             renderStatus(error instanceof Error ? error.message : "Unable to load card details.", "error");
@@ -1031,9 +1035,7 @@
     Array.from(target.querySelectorAll("[data-inline-detail-close]")).forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
-        state.inlineDetailTarget = null;
-        state.inlineDetailCardId = null;
-        renderAllCardGrids();
+        clearSelectedCard();
       });
     });
   }
@@ -1142,6 +1144,15 @@
     }
 
     return Promise.all(normalized.cards.map((entry) => enrichOwnedEntry(entry)));
+  }
+
+  function clearSelectedCard() {
+    state.selectionRequestId += 1;
+    state.inlineDetailTarget = null;
+    state.inlineDetailCardId = null;
+    state.selectedCard = null;
+    renderAllCardGrids();
+    elements.detailPanel.innerHTML = defaultDetailPanelMarkup;
   }
 
   async function selectCard(card, options = {}) {
