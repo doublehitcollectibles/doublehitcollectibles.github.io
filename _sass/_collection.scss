@@ -601,9 +601,13 @@
 .collection-inline-detail-shell {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(50px, 60px) minmax(0, 1fr);
-  gap: 6px;
-  padding: 6px 6px 7px;
+  grid-template-columns: minmax(34px, 40px) minmax(0, 1fr);
+  grid-template-areas:
+    "media header"
+    "body body";
+  column-gap: 3px;
+  row-gap: 2px;
+  padding: 0;
   border-radius: 14px;
   border: 1px solid rgba(255, 214, 68, 0.24);
   background:
@@ -613,127 +617,118 @@
 }
 
 .collection-inline-detail-media {
+  grid-area: media;
   display: flex;
   align-items: flex-start;
-  max-width: 60px;
+  max-width: 40px;
 }
 
 .collection-inline-detail-media img {
   width: 100%;
   aspect-ratio: 0.72;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
 }
 
-.collection-inline-detail-main {
+.collection-inline-detail-body {
+  grid-area: body;
   display: grid;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 
 .collection-inline-detail-header {
+  grid-area: header;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
-.collection-inline-detail-header > div {
+.collection-inline-detail-header-copy {
   display: grid;
-  gap: 1px;
-}
-
-.collection-inline-detail-header .collection-eyebrow {
-  margin: 0;
-  font-size: 0.58rem;
-  line-height: 1.05;
-  letter-spacing: 0.14em;
+  gap: 0;
+  min-width: 0;
 }
 
 .collection-inline-detail-title {
   margin: 0;
-  font-size: clamp(0.84rem, 1.35vw, 0.96rem);
-  line-height: 1.03;
+  font-size: clamp(0.74rem, 1.16vw, 0.86rem);
+  line-height: 1.02;
 }
 
 .collection-inline-detail-close {
   border: 0;
   border-radius: 999px;
-  padding: 5px 8px;
+  padding: 3px 6px;
   background: rgba(255, 255, 255, 0.09);
   color: #fff;
-  font-size: 0.6rem;
+  font-size: 0.52rem;
   font-weight: 700;
   cursor: pointer;
 }
 
-.collection-inline-detail-copy,
 .collection-inline-detail-source {
   margin: 0;
-}
-
-.collection-inline-detail-copy {
-  font-size: 0.66rem;
-  line-height: 1.26;
-  color: rgba(242, 247, 252, 0.76);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .collection-inline-detail-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 2px;
 }
 
 .collection-inline-detail-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 6px;
+  padding: 2px 4px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 0.56rem;
+  font-size: 0.48rem;
   color: rgba(246, 242, 232, 0.86);
 }
 
 .collection-inline-detail-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
+  width: min(100%, 148px);
+  gap: 2px;
+  justify-self: start;
 }
 
 .collection-inline-detail-stat {
-  padding: 5px;
-  border-radius: 9px;
+  min-block-size: 52px;
+  padding: 3px;
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.05);
 }
 
 .collection-inline-detail-stat-label {
-  margin: 0 0 2px;
-  font-size: 0.46rem;
-  letter-spacing: 0.11em;
+  margin: 0 0 1px;
+  font-size: 0.38rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 232, 156, 0.82);
 }
 
 .collection-inline-detail-stat-value {
   margin: 0;
-  font-size: 0.68rem;
-  line-height: 1.06;
+  font-size: 0.56rem;
+  line-height: 1.02;
   color: #fff;
 }
 
 .collection-inline-detail-stat-copy,
 .collection-inline-detail-source {
-  font-size: 0.54rem;
+  font-size: 0.44rem;
+  line-height: 1.08;
   color: rgba(242, 247, 252, 0.68);
 }
 
 .collection-inline-detail-stat-copy {
-  margin: 2px 0 0;
+  margin: 0;
 }
 
 .collection-inline-detail-history {
@@ -1356,7 +1351,7 @@
   }
 
   .collection-inline-detail-shell {
-    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-columns: 36px minmax(0, 1fr);
   }
 
   .collection-admin-entry-actions {
@@ -1399,11 +1394,11 @@
   }
 
   .collection-inline-detail-shell {
-    grid-template-columns: minmax(46px, 52px) minmax(0, 1fr);
+    grid-template-columns: minmax(32px, 36px) minmax(0, 1fr);
   }
 
   .collection-inline-detail-media {
-    max-width: 52px;
+    max-width: 36px;
   }
 
   .collection-search-form {
