@@ -20,13 +20,24 @@
     detailPanel: app.querySelector("[data-card-detail-panel]"),
   };
 
+  const gridLayoutApi = window.CollectionGridLayout || {
+    buildInlineDetailLayout(cards) {
+      return Array.isArray(cards) ? cards.map((card) => ({ type: "card", card })) : [];
+    },
+  };
+
   const state = {
     ownedCollection: { collectionName: "Double Hit Collection", currency: "USD", cards: [] },
     ownedCards: [],
     searchResults: [],
     selectedCard: null,
+    inlineDetailTarget: null,
+    inlineDetailCardId: null,
+    selectionRequestId: 0,
     sourceMode: apiBase ? "worker" : "fallback",
   };
+
+  let resizeTimer = 0;
 
   const CARD_SELECT_FIELDS = [
     "id",
@@ -84,6 +95,48 @@
     }
 
     return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+  }
+
+  function truncateText(value, maxLength) {
+    const normalized = String(value || "").trim();
+
+    if (!normalized || normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+  }
+
+  function getGridColumnCount(target) {
+    const isCompact = window.matchMedia("(max-width: 640px)").matches;
+    const gap = isCompact ? 12 : 14;
+    const minCardWidth = isCompact ? 152 : 172;
+    const width = target?.clientWidth || target?.offsetWidth || 0;
+
+    if (!width) {
+      return 1;
+    }
+
+    return Math.max(1, Math.floor((width + gap) / (minCardWidth + gap)));
+  }
+
+  function resolveInlineSelection(cards, targetKey) {
+    const activeCardId = state.inlineDetailTarget === targetKey ? state.inlineDetailCardId : null;
+
+    if (!activeCardId) {
+      return { activeCardId: null, detailCard: null };
+    }
+
+    const matchingCard = cards.find((card) => card.id === activeCardId) || null;
+
+    if (!matchingCard) {
+      return { activeCardId: null, detailCard: null };
+    }
+
+    return {
+      activeCardId,
+      detailCard: state.selectedCard?.id === activeCardId ? state.selectedCard : matchingCard,
+    };
   }
 
   function normalizeOwnedCollection(payload) {
@@ -795,14 +848,95 @@
     `;
   }
 
+  function renderInlineDetail(card, span, targetKey) {
+    const ownership = card.ownershipMetrics || {};
+    const rawPrice = getPriceVariant(card, "raw") || (card.pricing?.currentPrice != null
+      ? {
+          currentPrice: card.pricing.currentPrice,
+          currency: card.pricing.currency,
+          sourceLabel: card.pricing.sourceLabel,
+        }
+      : null);
+    const psa10Price = getPriceVariant(card, "psa10");
+    const returnCopy = ownership.deltaPercent != null ? formatPercent(ownership.deltaPercent) : "Track purchase price";
+    const quickCopy = truncateText(
+      card.flavorText || card.subtitle || "Compact detail for the selected card.",
+      170,
+    );
+    const badges = [
+      card.supertype,
+      card.rarity,
+      card.ownership?.condition,
+      ownership.quantity ? `Qty ${ownership.quantity}` : null,
+    ].filter(Boolean);
+
+    return `
+      <article
+        class="collection-inline-detail"
+        style="--inline-detail-span: ${escapeHtml(String(span || 1))};"
+        data-inline-detail-for="${escapeHtml(card.id)}"
+      >
+        <div class="collection-inline-detail-shell">
+          <div class="collection-inline-detail-media">
+            ${card.image ? `<img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}">` : ""}
+          </div>
+          <div class="collection-inline-detail-main">
+            <div class="collection-inline-detail-header">
+              <div>
+                <p class="collection-eyebrow">${escapeHtml(card.setName || card.supertype || "Card Detail")}</p>
+                <h3 class="collection-inline-detail-title">${escapeHtml(card.title)}</h3>
+              </div>
+              <button
+                class="collection-inline-detail-close"
+                type="button"
+                data-inline-detail-close="${escapeHtml(targetKey)}"
+                aria-label="Close compact detail"
+              >
+                Hide
+              </button>
+            </div>
+            <p class="collection-inline-detail-copy">${escapeHtml(quickCopy || "Selected card detail")}</p>
+            <div class="collection-inline-detail-pills">
+              ${badges.map((badge) => `<span class="collection-inline-detail-pill">${escapeHtml(badge)}</span>`).join("")}
+            </div>
+            <div class="collection-inline-detail-stats">
+              <article class="collection-inline-detail-stat">
+                <p class="collection-inline-detail-stat-label">Raw</p>
+                <p class="collection-inline-detail-stat-value">${formatCurrency(rawPrice?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
+              </article>
+              <article class="collection-inline-detail-stat">
+                <p class="collection-inline-detail-stat-label">PSA 10</p>
+                <p class="collection-inline-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
+              </article>
+              <article class="collection-inline-detail-stat">
+                <p class="collection-inline-detail-stat-label">Cost Basis</p>
+                <p class="collection-inline-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
+              </article>
+              <article class="collection-inline-detail-stat">
+                <p class="collection-inline-detail-stat-label">Return</p>
+                <p class="collection-inline-detail-stat-value">
+                  ${
+                    ownership.deltaAmount != null
+                      ? `${ownership.deltaAmount >= 0 ? "+" : ""}${formatCurrency(ownership.deltaAmount, card.pricing?.currency)}`
+                      : "N/A"
+                  }
+                </p>
+                <p class="collection-inline-detail-stat-copy">${escapeHtml(returnCopy || "N/A")}</p>
+              </article>
+            </div>
+            <p class="collection-inline-detail-source">${escapeHtml(rawPrice?.sourceLabel || card.pricing?.sourceLabel || "Market pricing")}</p>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
   function renderStatus(message, mode) {
     elements.status.textContent = message;
     elements.status.setAttribute("data-mode", mode || "info");
   }
 
-  function renderCardGrid(cards, target, clickHandler) {
-    target.innerHTML = cards
-      .map((card) => {
+  function renderCardMarkup(card, isSelected) {
         const ownershipMetrics = card.ownershipMetrics || {};
         const deltaAmount = ownershipMetrics.deltaAmount;
         const deltaPercent = ownershipMetrics.deltaPercent;
@@ -832,7 +966,10 @@
         ].filter(Boolean);
 
         return `
-          <article class="collection-card collection-card--vertical" data-card-id="${escapeHtml(card.id)}">
+          <article
+            class="collection-card collection-card--vertical${isSelected ? " collection-card--selected" : ""}"
+            data-card-id="${escapeHtml(card.id)}"
+          >
             <div class="collection-card-media">
               ${card.thumbnail ? `<img src="${escapeHtml(card.thumbnail)}" alt="${escapeHtml(card.title)}" loading="lazy">` : ""}
             </div>
@@ -860,6 +997,19 @@
             </div>
           </article>
         `;
+  }
+
+  function renderCardGrid(cards, target, targetKey) {
+    const { activeCardId, detailCard } = resolveInlineSelection(cards, targetKey);
+    const items = gridLayoutApi.buildInlineDetailLayout(cards, activeCardId, getGridColumnCount(target));
+
+    target.innerHTML = items
+      .map((item) => {
+        if (item.type === "detail") {
+          return detailCard ? renderInlineDetail(detailCard, item.span, targetKey) : "";
+        }
+
+        return renderCardMarkup(item.card, item.card.id === activeCardId);
       })
       .join("");
 
@@ -869,12 +1019,34 @@
         const selected = cards.find((card) => card.id === cardId);
 
         if (selected) {
-          clickHandler(selected).catch((error) => {
+          selectCard(selected, { inlineTarget: targetKey }).catch((error) => {
             renderStatus(error instanceof Error ? error.message : "Unable to load card details.", "error");
           });
         }
       });
     });
+
+    Array.from(target.querySelectorAll("[data-inline-detail-close]")).forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        state.inlineDetailTarget = null;
+        state.inlineDetailCardId = null;
+        renderAllCardGrids();
+      });
+    });
+  }
+
+  function renderOwnedGrid() {
+    renderCardGrid(state.ownedCards, elements.ownedGrid, "owned");
+  }
+
+  function renderSearchResultsGrid() {
+    renderCardGrid(state.searchResults, elements.searchResults, "search");
+  }
+
+  function renderAllCardGrids() {
+    renderOwnedGrid();
+    renderSearchResultsGrid();
   }
 
   async function fetchJson(url) {
@@ -970,14 +1142,34 @@
     return Promise.all(normalized.cards.map((entry) => enrichOwnedEntry(entry)));
   }
 
-  async function selectCard(card) {
+  async function selectCard(card, options = {}) {
+    const requestId = ++state.selectionRequestId;
+    const inlineTarget = options.inlineTarget || null;
+
+    if (inlineTarget) {
+      state.inlineDetailTarget = inlineTarget;
+      state.inlineDetailCardId = card.id;
+    }
+
+    state.selectedCard = card;
+    renderAllCardGrids();
+    renderDetail(card);
+
     let selectedCard = card;
 
     if (apiBase && card.kind === "api") {
       selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
     }
 
+    if (requestId !== state.selectionRequestId) {
+      return;
+    }
+
     state.selectedCard = selectedCard;
+    if (inlineTarget) {
+      state.inlineDetailCardId = selectedCard.id;
+    }
+    renderAllCardGrids();
     renderDetail(selectedCard);
   }
 
@@ -1002,7 +1194,7 @@
 
     elements.ownedEmpty.hidden = true;
     renderSummary(state.ownedCards);
-    renderCardGrid(state.ownedCards, elements.ownedGrid, selectCard);
+    renderOwnedGrid();
     await selectCard(state.ownedCards[0]);
 
     renderStatus(
@@ -1017,6 +1209,10 @@
   async function searchCards(query) {
     if (!query.trim()) {
       state.searchResults = [];
+      if (state.inlineDetailTarget === "search") {
+        state.inlineDetailTarget = null;
+        state.inlineDetailCardId = null;
+      }
       elements.searchFeedback.textContent = "Enter a card name or card number to search.";
       elements.searchResults.innerHTML = "";
       return;
@@ -1041,7 +1237,16 @@
     }
 
     elements.searchFeedback.textContent = `${state.searchResults.length} result${state.searchResults.length === 1 ? "" : "s"} found.`;
-    renderCardGrid(state.searchResults, elements.searchResults, selectCard);
+
+    if (
+      state.inlineDetailTarget === "search" &&
+      !state.searchResults.some((card) => card.id === state.inlineDetailCardId)
+    ) {
+      state.inlineDetailTarget = null;
+      state.inlineDetailCardId = null;
+    }
+
+    renderSearchResultsGrid();
   }
 
   function bindEvents() {
@@ -1052,6 +1257,15 @@
       searchCards(String(query || "")).catch((error) => {
         elements.searchFeedback.textContent = error instanceof Error ? error.message : "Search failed.";
       });
+    });
+
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        if (state.inlineDetailTarget) {
+          renderAllCardGrids();
+        }
+      }, 90);
     });
   }
 
