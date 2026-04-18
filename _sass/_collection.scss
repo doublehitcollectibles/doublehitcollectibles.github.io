@@ -42,6 +42,11 @@
 
 .collection-grid-wrap--tracked {
   padding: 14px;
+  --collection-card-title-height: 2.35rem;
+  --collection-card-copy-height: 3.4rem;
+  --collection-card-badge-height: 2rem;
+  --collection-card-market-height: 5.7rem;
+  --collection-card-movement-height: 2.6rem;
 }
 
 .collection-grid-wrap--tracked .collection-section-heading {
@@ -70,13 +75,14 @@
 .collection-grid-wrap--tracked .collection-card-content {
   display: grid;
   grid-template-rows:
-    minmax(2.25rem, auto)
-    minmax(3.3rem, auto)
-    2rem
-    auto
-    minmax(2.7rem, auto)
+    var(--collection-card-title-height)
+    var(--collection-card-copy-height)
+    var(--collection-card-badge-height)
+    var(--collection-card-market-height)
+    var(--collection-card-movement-height)
     auto;
   gap: 6px;
+  align-content: start;
   height: 100%;
 }
 
@@ -91,6 +97,7 @@
 
 .collection-grid-wrap--tracked .collection-card h3 {
   margin: 0;
+  block-size: var(--collection-card-title-height);
   font-size: 0.96rem;
   line-height: 1.15;
   display: -webkit-box;
@@ -101,6 +108,7 @@
 
 .collection-grid-wrap--tracked .collection-card-copy {
   margin: 0;
+  block-size: var(--collection-card-copy-height);
   font-size: 0.82rem;
   line-height: 1.32;
   display: -webkit-box;
@@ -117,10 +125,14 @@
 .collection-grid-wrap--tracked .collection-card-markets {
   margin-top: 2px;
   gap: 6px;
+  min-block-size: var(--collection-card-market-height);
 }
 
 .collection-grid-wrap--tracked .collection-market-card {
   padding: 8px 9px;
+  block-size: var(--collection-card-market-height);
+  grid-template-rows: auto auto 2.1rem;
+  align-content: start;
 }
 
 .collection-grid-wrap--tracked .collection-market-value {
@@ -129,17 +141,19 @@
 
 .collection-grid-wrap--tracked .collection-market-change {
   font-size: 0.72rem;
+  block-size: 2.1rem;
 }
 
 .collection-grid-wrap--tracked .collection-movement {
   margin-top: 0;
   font-size: 0.8rem;
+  block-size: var(--collection-card-movement-height);
 }
 
 .collection-grid-wrap--tracked .collection-card-badges {
   margin: 0;
   align-content: flex-start;
-  max-height: 2rem;
+  block-size: var(--collection-card-badge-height);
   overflow: hidden;
 }
 
@@ -305,6 +319,11 @@
 .collection-search-results {
   grid-template-columns: repeat(auto-fill, minmax(172px, 196px));
   justify-content: start;
+  --collection-card-title-height: 2.35rem;
+  --collection-card-copy-height: 3.4rem;
+  --collection-card-badge-height: 2rem;
+  --collection-card-market-height: 5.7rem;
+  --collection-card-movement-height: 2.6rem;
 }
 
 .collection-search-results .collection-card {
@@ -323,13 +342,14 @@
 .collection-search-results .collection-card-content {
   display: grid;
   grid-template-rows:
-    minmax(2.25rem, auto)
-    minmax(3.3rem, auto)
-    2rem
-    auto
-    minmax(2.7rem, auto)
+    var(--collection-card-title-height)
+    var(--collection-card-copy-height)
+    var(--collection-card-badge-height)
+    var(--collection-card-market-height)
+    var(--collection-card-movement-height)
     auto;
   gap: 6px;
+  align-content: start;
   height: 100%;
 }
 
@@ -344,6 +364,7 @@
 
 .collection-search-results .collection-card h3 {
   margin: 0;
+  block-size: var(--collection-card-title-height);
   font-size: 0.96rem;
   line-height: 1.15;
   display: -webkit-box;
@@ -354,6 +375,7 @@
 
 .collection-search-results .collection-card-copy {
   margin: 0;
+  block-size: var(--collection-card-copy-height);
   font-size: 0.82rem;
   line-height: 1.32;
   display: -webkit-box;
@@ -370,10 +392,14 @@
 .collection-search-results .collection-card-markets {
   margin-top: 2px;
   gap: 6px;
+  min-block-size: var(--collection-card-market-height);
 }
 
 .collection-search-results .collection-market-card {
   padding: 8px 9px;
+  block-size: var(--collection-card-market-height);
+  grid-template-rows: auto auto 2.1rem;
+  align-content: start;
 }
 
 .collection-search-results .collection-market-value {
@@ -382,17 +408,19 @@
 
 .collection-search-results .collection-market-change {
   font-size: 0.72rem;
+  block-size: 2.1rem;
 }
 
 .collection-search-results .collection-movement {
   margin-top: 0;
   font-size: 0.8rem;
+  block-size: var(--collection-card-movement-height);
 }
 
 .collection-search-results .collection-card-badges {
   margin: 0;
   align-content: flex-start;
-  max-height: 2rem;
+  block-size: var(--collection-card-badge-height);
   overflow: hidden;
 }
 
