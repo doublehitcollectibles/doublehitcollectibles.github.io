@@ -377,6 +377,56 @@
     return (Array.isArray(card?.priceVariants) ? card.priceVariants : []).find((variant) => variant.key === key) || null;
   }
 
+  function getHistorySeries(card, key) {
+    return (Array.isArray(card?.historySeries) ? card.historySeries : []).find((series) => series.key === key) || null;
+  }
+
+  function getSeriesDelta(series) {
+    if (!series || !Array.isArray(series.points) || series.points.length < 2) {
+      return null;
+    }
+
+    const first = Number(series.points[0]?.price);
+    const last = Number(series.points[series.points.length - 1]?.price);
+
+    if (!Number.isFinite(first) || !Number.isFinite(last) || first <= 0) {
+      return null;
+    }
+
+    const delta = last - first;
+    const percent = (delta / first) * 100;
+
+    return {
+      delta,
+      percent,
+    };
+  }
+
+  function renderMarketBlock(label, variant, delta) {
+    const currency = variant?.currency || "USD";
+    const hasPercent = typeof delta?.percent === "number" && Number.isFinite(delta.percent);
+    const deltaClass =
+      hasPercent && delta.percent > 0
+        ? "collection-market-change collection-market-change--up"
+        : hasPercent && delta.percent < 0
+          ? "collection-market-change collection-market-change--down"
+          : "collection-market-change";
+
+    return `
+      <div class="collection-market-card">
+        <span class="collection-market-label">${escapeHtml(label)}</span>
+        <strong class="collection-market-value">${formatCurrency(variant?.currentPrice, currency)}</strong>
+        <span class="${deltaClass}">
+          ${
+            hasPercent
+              ? `${delta.percent >= 0 ? "+" : ""}${formatPercent(delta.percent)}`
+              : "No trend"
+          }
+        </span>
+      </div>
+    `;
+  }
+
   function normalizeHistorySeries(card, currency) {
     const series = Array.isArray(card?.historySeries) ? card.historySeries : [];
     const validSeries = series
@@ -736,9 +786,17 @@
               ? "collection-movement collection-movement--down"
               : "collection-movement collection-movement--flat"
           : "collection-movement";
+        const rawVariant = getPriceVariant(card, "raw") || (card.pricing?.currentPrice != null
+          ? {
+              currentPrice: card.pricing.currentPrice,
+              currency: card.pricing.currency,
+            }
+          : null);
+        const psa10Variant = getPriceVariant(card, "psa10");
+        const rawDelta = getSeriesDelta(getHistorySeries(card, "raw") || getHistorySeries(card, "snapshot"));
+        const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"));
         const badges = [
           card.supertype,
-          card.pricing?.priceType && card.pricing.priceType !== "unavailable" ? card.pricing.priceType : null,
           card.ownership?.condition || null,
         ].filter(Boolean);
 
@@ -753,14 +811,17 @@
               <div class="collection-card-badges">
                 ${badges.map((badge) => `<span class="collection-badge">${escapeHtml(badge)}</span>`).join("")}
               </div>
-              <div class="collection-card-price">${formatCurrency(card.pricing?.currentPrice, card.pricing?.currency)}</div>
-              <div class="${directionClass}">
-                ${
-                  hasMovement
-                    ? `${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)})`
-                    : escapeHtml(card.pricing?.sourceLabel || "Pricing unavailable")
-                }
+              <div class="collection-card-markets">
+                ${renderMarketBlock("Raw", rawVariant, rawDelta)}
+                ${renderMarketBlock("PSA 10", psa10Variant, psa10Delta)}
               </div>
+              ${
+                hasMovement
+                  ? `<div class="${directionClass}">
+                      ${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)}) vs cost basis
+                    </div>`
+                  : ""
+              }
               <div class="collection-ownership-row">
                 <span>Qty</span>
                 <strong>${escapeHtml(String(ownershipMetrics.quantity || 1))}</strong>

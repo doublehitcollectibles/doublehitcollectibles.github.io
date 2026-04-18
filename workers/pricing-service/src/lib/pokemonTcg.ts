@@ -343,7 +343,9 @@ function buildPricingPresentation(
   storedPayload?: StoredPricePayload | null,
 ) {
   const externalVariants = storedPayload?.priceVariants || [];
-  const rawVariant = externalVariants.find((variant) => variant.key === "raw") || buildRawVariant(basePricing);
+  const baseRawVariant = buildRawVariant(basePricing);
+  const externalRawVariant = externalVariants.find((variant) => variant.key === "raw") || null;
+  const rawVariant = baseRawVariant || externalRawVariant;
   const otherVariants = externalVariants.filter((variant) => variant.key !== "raw");
   const priceVariants = [rawVariant, ...otherVariants].filter(Boolean) as PokemonPriceVariant[];
 
@@ -470,8 +472,7 @@ export async function searchPokemonCards(env: Env, input: string): Promise<Pokem
   const summaries = await Promise.all(
     cards.map(async (card) => {
       const basePricing = selectPrice(card);
-      const fallbackPricing =
-        basePricing.currentPrice == null ? await fetchPriceChartingPricing(env, card).catch(() => null) : null;
+      const fallbackPricing = await fetchPriceChartingPricing(env, card).catch(() => null);
 
       return mapPokemonCardSummary(
         card,

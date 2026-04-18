@@ -99,6 +99,23 @@
   font-size: 1.18rem;
 }
 
+.collection-grid-wrap--tracked .collection-card-markets {
+  margin-top: 2px;
+  gap: 6px;
+}
+
+.collection-grid-wrap--tracked .collection-market-card {
+  padding: 8px 9px;
+}
+
+.collection-grid-wrap--tracked .collection-market-value {
+  font-size: 0.94rem;
+}
+
+.collection-grid-wrap--tracked .collection-market-change {
+  font-size: 0.72rem;
+}
+
 .collection-grid-wrap--tracked .collection-movement {
   margin-top: 0;
   font-size: 0.8rem;
@@ -314,6 +331,23 @@
   font-size: 1.18rem;
 }
 
+.collection-search-results .collection-card-markets {
+  margin-top: 2px;
+  gap: 6px;
+}
+
+.collection-search-results .collection-market-card {
+  padding: 8px 9px;
+}
+
+.collection-search-results .collection-market-value {
+  font-size: 0.94rem;
+}
+
+.collection-search-results .collection-market-change {
+  font-size: 0.72rem;
+}
+
 .collection-search-results .collection-movement {
   margin-top: 0;
   font-size: 0.8rem;
@@ -391,6 +425,48 @@
   font-size: 1.32rem;
   font-weight: 700;
   color: #ffffff;
+}
+
+.collection-card-markets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.collection-market-card {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.collection-market-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(246, 242, 232, 0.58);
+}
+
+.collection-market-value {
+  font-size: 1rem;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.collection-market-change {
+  font-size: 0.76rem;
+  color: rgba(246, 242, 232, 0.7);
+}
+
+.collection-market-change--up {
+  color: #32d296;
+}
+
+.collection-market-change--down {
+  color: #ff6a63;
 }
 
 .collection-movement {
