@@ -763,7 +763,12 @@
     `;
   }
 
+  function getCardDisplayTitle(card) {
+    return card?.title || card?.cardName || card?.name || card?.id || "Collection Item";
+  }
+
   function renderDetail(card) {
+    const displayTitle = getCardDisplayTitle(card);
     const ownership = card.ownershipMetrics || {};
     const rawPrice = getPriceVariant(card, "raw");
     const psa10Price = getPriceVariant(card, "psa10");
@@ -787,13 +792,13 @@
     elements.detailPanel.innerHTML = `
       <div class="collection-detail-layout">
         <aside class="collection-detail-aside">
-          ${card.image ? `<img class="collection-detail-image" src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}">` : ""}
+          ${card.image ? `<img class="collection-detail-image" src="${escapeHtml(card.image)}" alt="${escapeHtml(displayTitle)}">` : ""}
         </aside>
         <div class="collection-detail-main">
           <div class="collection-detail-hero">
             <div>
               <p class="collection-eyebrow">${escapeHtml(card.setName || card.supertype || "Collection Item")}</p>
-              <h2 class="collection-detail-title">${escapeHtml(card.title)}</h2>
+              <h2 class="collection-detail-title">${escapeHtml(displayTitle)}</h2>
               <p class="collection-detail-copy">${escapeHtml(card.subtitle || "Tracked collection item")}</p>
               ${card.flavorText ? `<p class="collection-detail-copy">${escapeHtml(card.flavorText)}</p>` : ""}
               <div class="collection-detail-price-grid">
@@ -933,6 +938,7 @@
   }
 
   function renderCardMarkup(card, isSelected) {
+        const displayTitle = getCardDisplayTitle(card);
         const ownershipMetrics = card.ownershipMetrics || {};
         const deltaAmount = ownershipMetrics.deltaAmount;
         const deltaPercent = ownershipMetrics.deltaPercent;
@@ -973,10 +979,10 @@
             data-card-id="${escapeHtml(card.id)}"
           >
             <div class="collection-card-media">
-              ${card.thumbnail ? `<img src="${escapeHtml(card.thumbnail)}" alt="${escapeHtml(card.title)}" loading="lazy">` : ""}
+              ${card.thumbnail ? `<img src="${escapeHtml(card.thumbnail)}" alt="${escapeHtml(displayTitle)}" loading="lazy">` : ""}
             </div>
             <div class="collection-card-content">
-              <h3>${escapeHtml(card.title)}</h3>
+              <h3>${escapeHtml(displayTitle)}</h3>
               <p class="collection-card-copy">${escapeHtml(card.subtitle || "Tracked collection item")}</p>
               <div class="collection-card-badges">
                 ${badges.map((badge) => `<span class="collection-badge">${escapeHtml(badge)}</span>`).join("")}
