@@ -261,6 +261,18 @@
   function mapCardPayload(card, ownership, history) {
     const pricing = selectPrice(card, ownership?.priceType);
     const setName = card?.set?.name || "Unknown Set";
+    const rawVariant =
+      pricing.currentPrice != null
+        ? {
+            key: "raw",
+            label: "Raw",
+            currency: pricing.currency,
+            currentPrice: pricing.currentPrice,
+            sourceLabel: pricing.sourceLabel,
+            updatedAt: pricing.updatedAt,
+            metrics: pricing.metrics,
+          }
+        : null;
 
     return {
       kind: "api",
@@ -291,6 +303,9 @@
       rules: card?.rules || [],
       nationalPokedexNumbers: card?.nationalPokedexNumbers || [],
       pricing,
+      priceVariants: rawVariant ? [rawVariant] : [],
+      historySeries: [],
+      marketSourceUrl: null,
       ownership: ownership || null,
       ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, ownership || null),
       history: Array.isArray(history) ? history : [],
@@ -336,75 +351,246 @@
         metrics: {},
         updatedAt: entry.updatedAt || null,
       },
+      priceVariants:
+        currentPrice != null
+          ? [
+              {
+                key: "raw",
+                label: "Raw",
+                currency: entry.currency || state.ownedCollection.currency || "USD",
+                currentPrice,
+                sourceLabel: entry.priceSource || "Manual Entry",
+                updatedAt: entry.updatedAt || null,
+                metrics: {},
+              },
+            ]
+          : [],
+      historySeries: [],
+      marketSourceUrl: null,
       ownership: entry,
       ownershipMetrics: computeOwnershipMetrics(currentPrice, entry),
       history: Array.isArray(entry.history) ? entry.history : [],
     };
   }
 
-  function buildHistoryChart(history, currency) {
-    if (!Array.isArray(history) || history.length < 2) {
-      return `
-        <div class="collection-history">
-          <strong>Price History</strong>
-          <p class="collection-history-caption">History will appear here as snapshots accumulate through the worker.</p>
-        </div>
-      `;
+  function getPriceVariant(card, key) {
+    return (Array.isArray(card?.priceVariants) ? card.priceVariants : []).find((variant) => variant.key === key) || null;
+  }
+
+  function normalizeHistorySeries(card, currency) {
+    const series = Array.isArray(card?.historySeries) ? card.historySeries : [];
+    const validSeries = series
+      .map((item, index) => ({
+        key: item?.key || `series-${index + 1}`,
+        label: item?.label || `Series ${index + 1}`,
+        currency: item?.currency || currency || "USD",
+        sourceLabel: item?.sourceLabel || "Market",
+        color: item?.color || (index === 0 ? "#4aa8ff" : "#ffd84a"),
+        points: Array.isArray(item?.points)
+          ? item.points
+              .map((point) => ({
+                capturedAt: point?.capturedAt,
+                price: Number(point?.price),
+              }))
+              .filter((point) => point.capturedAt && Number.isFinite(point.price) && point.price > 0)
+          : [],
+      }))
+      .filter((item) => item.points.length >= 2);
+
+    if (validSeries.length) {
+      return validSeries;
     }
 
-    const values = history
-      .map((point) => Number(point.marketPrice ?? point.price ?? 0))
-      .filter((value) => value > 0);
+    const fallbackHistory = Array.isArray(card?.history) ? card.history : [];
+    const fallbackPoints = fallbackHistory
+      .map((point) => ({
+        capturedAt: point?.capturedAt,
+        price: Number(point?.marketPrice),
+      }))
+      .filter((point) => point.capturedAt && Number.isFinite(point.price) && point.price > 0);
 
-    if (values.length < 2) {
+    if (fallbackPoints.length < 2) {
+      return [];
+    }
+
+    return [
+      {
+        key: "snapshot",
+        label: card?.pricing?.priceType && card.pricing.priceType !== "unavailable" ? card.pricing.priceType : "Market",
+        currency: card?.pricing?.currency || currency || "USD",
+        sourceLabel: card?.pricing?.sourceLabel || "Market",
+        color: "#ff8a4c",
+        points: fallbackPoints,
+      },
+    ];
+  }
+
+  function formatShortDate(value) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  }
+
+  function buildHistoryChart(card, currency) {
+    const historySeries = normalizeHistorySeries(card, currency);
+
+    if (!historySeries.length) {
       return `
         <div class="collection-history">
           <strong>Price History</strong>
-          <p class="collection-history-caption">Not enough pricing snapshots yet to draw a trend line.</p>
+          <p class="collection-history-caption">History will appear here as live pricing data becomes available for this card.</p>
         </div>
       `;
     }
 
     const width = 640;
-    const height = 180;
+    const height = 220;
+    const padding = { top: 18, right: 12, bottom: 38, left: 54 };
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+    const allPoints = historySeries.flatMap((series) =>
+      series.points.map((point) => ({
+        timestamp: new Date(point.capturedAt).getTime(),
+        price: point.price,
+      })),
+    );
+    const timestamps = allPoints.map((point) => point.timestamp).filter((value) => Number.isFinite(value));
+    const values = allPoints.map((point) => point.price).filter((value) => Number.isFinite(value) && value > 0);
+
+    if (!timestamps.length || values.length < 2) {
+      return `
+        <div class="collection-history">
+          <strong>Price History</strong>
+          <p class="collection-history-caption">Not enough market history is available yet to draw this chart.</p>
+        </div>
+      `;
+    }
+
+    const minX = Math.min(...timestamps);
+    const maxX = Math.max(...timestamps);
     const min = Math.min(...values);
     const max = Math.max(...values);
     const range = max - min || 1;
-    const points = values
-      .map((value, index) => {
-        const x = (index / (values.length - 1)) * width;
-        const y = height - ((value - min) / range) * (height - 24) - 12;
-        return `${x.toFixed(2)},${y.toFixed(2)}`;
-      })
-      .join(" ");
+    const xRange = maxX - minX || 1;
+    const gridLines = 4;
+    const grid = Array.from({ length: gridLines }, (_, index) => {
+      const ratio = index / (gridLines - 1);
+      const y = padding.top + plotHeight * ratio;
+      const price = max - range * ratio;
+      return {
+        y,
+        label: formatCurrency(price, currency),
+      };
+    });
+    const tickCount = Math.min(5, timestamps.length);
+    const xTicks = Array.from({ length: tickCount }, (_, index) => {
+      const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
+      const timestamp = minX + xRange * ratio;
+      const x = padding.left + plotWidth * ratio;
 
-    const latest = values[values.length - 1];
-    const earliest = values[0];
-    const delta = latest - earliest;
-    const percent = earliest > 0 ? (delta / earliest) * 100 : null;
+      return {
+        x,
+        label: formatShortDate(timestamp),
+      };
+    });
+    const lines = historySeries.map((series) => {
+      const points = series.points
+        .map((point) => {
+          const timestamp = new Date(point.capturedAt).getTime();
+          const x = padding.left + ((timestamp - minX) / xRange) * plotWidth;
+          const y = padding.top + plotHeight - ((point.price - min) / range) * plotHeight;
+          return `${x.toFixed(2)},${y.toFixed(2)}`;
+        })
+        .join(" ");
+      const latestPoint = series.points[series.points.length - 1];
+      const earliestPoint = series.points[0];
+      const delta = latestPoint.price - earliestPoint.price;
+      const percent = earliestPoint.price > 0 ? (delta / earliestPoint.price) * 100 : null;
+
+      return {
+        ...series,
+        pointsAttr: points,
+        latestPrice: latestPoint.price,
+        delta,
+        percent,
+      };
+    });
 
     return `
       <div class="collection-history">
-        <strong>Price History</strong>
+        <div class="collection-history-header">
+          <strong>Price History</strong>
+          <div class="collection-history-legend">
+            ${lines
+              .map(
+                (series) => `
+                  <span class="collection-history-legend-item">
+                    <span class="collection-history-dot" style="--history-color: ${escapeHtml(series.color)};"></span>
+                    ${escapeHtml(series.label)}
+                  </span>`,
+              )
+              .join("")}
+          </div>
+        </div>
         <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="collection-history-line" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="#ffd644"></stop>
-              <stop offset="100%" stop-color="#ff4b23"></stop>
-            </linearGradient>
-          </defs>
-          <polyline
-            fill="none"
-            stroke="url(#collection-history-line)"
-            stroke-width="5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            points="${points}"
-          ></polyline>
+          ${grid
+            .map(
+              (line) => `
+                <line x1="${padding.left}" y1="${line.y}" x2="${width - padding.right}" y2="${line.y}" class="collection-history-grid-line"></line>
+                <text x="${padding.left - 8}" y="${line.y + 4}" text-anchor="end" class="collection-history-axis-label">${escapeHtml(line.label)}</text>`,
+            )
+            .join("")}
+          ${xTicks
+            .map(
+              (tick) => `
+                <text x="${tick.x}" y="${height - 10}" text-anchor="middle" class="collection-history-axis-label">${escapeHtml(tick.label)}</text>`,
+            )
+            .join("")}
+          ${lines
+            .map(
+              (series) => `
+                <polyline
+                  fill="none"
+                  stroke="${escapeHtml(series.color)}"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="${series.pointsAttr}"
+                ></polyline>`,
+            )
+            .join("")}
         </svg>
+        <div class="collection-history-summary">
+          ${lines
+            .map(
+              (series) => `
+                <div class="collection-history-summary-card">
+                  <span class="collection-history-summary-label">${escapeHtml(series.label)}</span>
+                  <strong>${formatCurrency(series.latestPrice, series.currency)}</strong>
+                  <span class="collection-history-summary-delta ${
+                    series.delta > 0 ? "collection-history-summary-delta--up" : series.delta < 0 ? "collection-history-summary-delta--down" : ""
+                  }">
+                    ${series.delta >= 0 ? "+" : ""}${formatCurrency(series.delta, series.currency)}
+                    ${series.percent != null ? `(${formatPercent(series.percent)})` : ""}
+                  </span>
+                </div>`,
+            )
+            .join("")}
+        </div>
         <p class="collection-history-caption">
-          ${formatCurrency(latest, currency)} current | ${delta >= 0 ? "+" : ""}${formatCurrency(delta, currency)} since first snapshot
-          ${percent != null ? `(${formatPercent(percent)})` : ""}
+          History source:
+          ${
+            card?.marketSourceUrl
+              ? `<a href="${escapeHtml(card.marketSourceUrl)}" target="_blank" rel="noreferrer">PriceCharting</a>`
+              : escapeHtml(lines[0].sourceLabel || "Market data")
+          }
         </p>
       </div>
     `;
@@ -445,6 +631,8 @@
 
   function renderDetail(card) {
     const ownership = card.ownershipMetrics || {};
+    const rawPrice = getPriceVariant(card, "raw");
+    const psa10Price = getPriceVariant(card, "psa10");
     const attacks = card.attacks?.length
       ? `<ul class="collection-detail-list">${card.attacks
           .map(
@@ -474,16 +662,19 @@
           ${card.flavorText ? `<p class="collection-detail-copy">${escapeHtml(card.flavorText)}</p>` : ""}
           <div class="collection-detail-price-grid">
             <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">Current Price</p>
-              <p class="collection-detail-stat-value">${formatCurrency(card.pricing?.currentPrice, card.pricing?.currency)}</p>
+              <p class="collection-detail-stat-label">Raw</p>
+              <p class="collection-detail-stat-value">${formatCurrency(rawPrice?.currentPrice ?? card.pricing?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
+              <p class="collection-detail-stat-copy">${escapeHtml(rawPrice?.sourceLabel || card.pricing?.sourceLabel || "Unavailable")}</p>
             </article>
             <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">Price Source</p>
-              <p class="collection-detail-stat-value">${escapeHtml(card.pricing?.sourceLabel || "Unavailable")}</p>
+              <p class="collection-detail-stat-label">PSA 10</p>
+              <p class="collection-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
+              <p class="collection-detail-stat-copy">${escapeHtml(psa10Price?.sourceLabel || "Unavailable")}</p>
             </article>
             <article class="collection-detail-stat">
               <p class="collection-detail-stat-label">Cost Basis</p>
               <p class="collection-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
+              <p class="collection-detail-stat-copy">Based on your logged purchase price and quantity</p>
             </article>
             <article class="collection-detail-stat">
               <p class="collection-detail-stat-label">Return</p>
@@ -494,12 +685,13 @@
                     : "Add purchase prices to calculate"
                 }
               </p>
+              <p class="collection-detail-stat-copy">${escapeHtml(card.pricing?.sourceLabel || "Unavailable")}</p>
             </article>
           </div>
         </div>
       </div>
 
-      ${buildHistoryChart(card.history, card.pricing?.currency)}
+      ${buildHistoryChart(card, card.pricing?.currency)}
 
       <div class="collection-detail-meta">
         <div><dt>Set</dt><dd>${escapeHtml(card.setName || "N/A")}</dd></div>

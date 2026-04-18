@@ -1,12 +1,15 @@
 import { getPricingConfig } from "../config";
 import { listCollectionCards } from "./collectionCardsDb";
 import { getPokemonCardHistory, getLatestPokemonCardSnapshot, writePokemonCardSnapshot } from "./pokemonCollectionDb";
+import { fetchPriceChartingPricing } from "./priceCharting";
 import type {
   CollectionCardRecord,
   Env,
   OwnedCollectionEntry,
   PokemonCardSummary,
   PokemonHistoryPoint,
+  PokemonPriceHistorySeries,
+  PokemonPriceVariant,
 } from "../types";
 
 interface PokemonApiResponse<T> {
@@ -60,6 +63,14 @@ interface PokemonCard {
     updatedAt?: string;
     prices?: Record<string, number | null>;
   };
+}
+
+interface StoredPricePayload {
+  pricing?: PokemonCardSummary["pricing"];
+  priceVariants?: PokemonPriceVariant[];
+  historySeries?: PokemonPriceHistorySeries[];
+  marketSourceUrl?: string | null;
+  externalPricingChecked?: boolean;
 }
 
 const CARD_SELECT_FIELDS = [
@@ -253,12 +264,124 @@ function selectPrice(card: PokemonCard, preferredPriceType?: string) {
   };
 }
 
+function toTitleLabel(value: string): string {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function buildRawVariant(basePricing: PokemonCardSummary["pricing"]): PokemonPriceVariant | null {
+  if (basePricing.currentPrice == null) {
+    return null;
+  }
+
+  return {
+    key: "raw",
+    label: "Raw",
+    currency: basePricing.currency,
+    currentPrice: basePricing.currentPrice,
+    sourceLabel: basePricing.sourceLabel,
+    updatedAt: basePricing.updatedAt,
+    metrics: basePricing.metrics,
+  };
+}
+
+function buildSnapshotHistorySeries(
+  history: PokemonHistoryPoint[],
+  pricing: PokemonCardSummary["pricing"],
+): PokemonPriceHistorySeries[] {
+  const points = history
+    .filter((point) => typeof point.marketPrice === "number" && !Number.isNaN(point.marketPrice) && point.marketPrice > 0)
+    .map((point) => ({
+      capturedAt: point.capturedAt,
+      price: point.marketPrice as number,
+    }));
+
+  if (points.length < 2) {
+    return [];
+  }
+
+  return [
+    {
+      key: "snapshot",
+      label: toTitleLabel(pricing.priceType === "unavailable" ? "market" : pricing.priceType),
+      currency: pricing.currency,
+      sourceLabel: pricing.sourceLabel,
+      color: "#ff8a4c",
+      points,
+    },
+  ];
+}
+
+function normalizeStoredPricePayload(payload: string | null): StoredPricePayload | null {
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(payload) as StoredPricePayload | PokemonCardSummary["pricing"];
+
+    if (parsed && typeof parsed === "object" && ("currentPrice" in parsed || "priceType" in parsed)) {
+      return {
+        pricing: parsed as PokemonCardSummary["pricing"],
+      };
+    }
+
+    return parsed && typeof parsed === "object" ? (parsed as StoredPricePayload) : null;
+  } catch (error) {
+    console.error("Failed to parse stored Pokemon price payload.", error);
+    return null;
+  }
+}
+
+function buildPricingPresentation(
+  basePricing: PokemonCardSummary["pricing"],
+  history: PokemonHistoryPoint[],
+  storedPayload?: StoredPricePayload | null,
+) {
+  const externalVariants = storedPayload?.priceVariants || [];
+  const rawVariant = externalVariants.find((variant) => variant.key === "raw") || buildRawVariant(basePricing);
+  const otherVariants = externalVariants.filter((variant) => variant.key !== "raw");
+  const priceVariants = [rawVariant, ...otherVariants].filter(Boolean) as PokemonPriceVariant[];
+
+  const pricing =
+    basePricing.currentPrice != null
+      ? basePricing
+      : rawVariant
+        ? {
+            priceType: rawVariant.key,
+            currency: rawVariant.currency,
+            currentPrice: rawVariant.currentPrice,
+            sourceLabel: rawVariant.sourceLabel,
+            metrics: rawVariant.metrics,
+            updatedAt: rawVariant.updatedAt,
+          }
+        : basePricing;
+
+  const historySeries =
+    storedPayload?.historySeries && storedPayload.historySeries.length
+      ? storedPayload.historySeries
+      : buildSnapshotHistorySeries(history, pricing);
+
+  return {
+    pricing,
+    priceVariants,
+    historySeries,
+    marketSourceUrl: storedPayload?.marketSourceUrl ?? null,
+  };
+}
+
 export function mapPokemonCardSummary(
   card: PokemonCard,
   ownership: OwnedCollectionEntry | null,
   history: PokemonHistoryPoint[],
+  storedPayload?: StoredPricePayload | null,
 ): PokemonCardSummary {
-  const pricing = selectPrice(card, ownership?.priceType);
+  const basePricing = selectPrice(card, ownership?.priceType);
+  const { pricing, priceVariants, historySeries, marketSourceUrl } = buildPricingPresentation(basePricing, history, storedPayload);
   const ownershipMetrics = computeOwnershipMetrics(pricing.currentPrice, ownership);
   const setName = card.set?.name || "Unknown Set";
   const subtitle = [setName, card.rarity, card.number].filter(Boolean).join(" | ");
@@ -292,6 +415,9 @@ export function mapPokemonCardSummary(
     rules: card.rules || [],
     nationalPokedexNumbers: card.nationalPokedexNumbers || [],
     pricing,
+    priceVariants,
+    historySeries,
+    marketSourceUrl,
     ownership,
     ownershipMetrics,
     history,
@@ -339,7 +465,35 @@ export async function searchPokemonCards(env: Env, input: string): Promise<Pokem
     select: CARD_SELECT_FIELDS,
   });
 
-  return (payload.data || []).map((card) => mapPokemonCardSummary(card, null, []));
+  const cards = payload.data || [];
+
+  const summaries = await Promise.all(
+    cards.map(async (card) => {
+      const basePricing = selectPrice(card);
+      const fallbackPricing =
+        basePricing.currentPrice == null ? await fetchPriceChartingPricing(env, card).catch(() => null) : null;
+
+      return mapPokemonCardSummary(
+        card,
+        null,
+        [],
+        fallbackPricing
+          ? {
+              pricing: basePricing,
+              priceVariants: fallbackPricing.priceVariants,
+              historySeries: fallbackPricing.historySeries,
+              marketSourceUrl: fallbackPricing.sourceUrl,
+              externalPricingChecked: true,
+            }
+          : {
+              pricing: basePricing,
+              externalPricingChecked: true,
+            },
+      );
+    }),
+  );
+
+  return summaries;
 }
 
 async function fetchPokemonCard(env: Env, cardId: string): Promise<PokemonCard> {
@@ -360,22 +514,49 @@ export async function getPokemonCardDetail(
   const latestSnapshot = await getLatestPokemonCardSnapshot(env.PRICING_DB, cardId, ownership?.priceType);
   const latestCapturedAt = latestSnapshot ? Date.parse(latestSnapshot.captured_at) : 0;
   const cacheFreshMs = config.pokemonTcgCacheTtlMinutes * 60_000;
+  const storedPayload = normalizeStoredPricePayload(latestSnapshot?.price_payload ?? null);
+  const snapshotHasExternalPricing = Boolean(
+    storedPayload?.externalPricingChecked ||
+      (storedPayload?.priceVariants && storedPayload.priceVariants.length) ||
+      (storedPayload?.historySeries && storedPayload.historySeries.length),
+  );
 
-  if (!forceRefresh && latestSnapshot && Date.now() - latestCapturedAt < cacheFreshMs) {
+  if (!forceRefresh && latestSnapshot && Date.now() - latestCapturedAt < cacheFreshMs && snapshotHasExternalPricing) {
     const rawCard = JSON.parse(latestSnapshot.card_payload) as PokemonCard;
     const history = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 30);
-    return mapPokemonCardSummary(rawCard, ownership, history);
+    return mapPokemonCardSummary(rawCard, ownership, history, storedPayload);
   }
 
   const card = await fetchPokemonCard(env, cardId);
+  const externalPricing = await fetchPriceChartingPricing(env, card).catch((error) => {
+    console.error("PriceCharting enrichment failed.", error);
+    return null;
+  });
   const historyBefore = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 29);
-  const summary = mapPokemonCardSummary(card, ownership, historyBefore);
+  const summary = mapPokemonCardSummary(
+    card,
+    ownership,
+    historyBefore,
+    externalPricing
+      ? {
+          pricing: selectPrice(card, ownership?.priceType),
+          priceVariants: externalPricing.priceVariants,
+          historySeries: externalPricing.historySeries,
+          marketSourceUrl: externalPricing.sourceUrl,
+          externalPricingChecked: true,
+        }
+      : {
+          pricing: selectPrice(card, ownership?.priceType),
+          externalPricingChecked: true,
+        },
+  );
   await writePokemonCardSnapshot(env.PRICING_DB, summary, card as unknown as Record<string, unknown>);
   const history = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 30);
 
   return {
     ...summary,
     history,
+    historySeries: summary.historySeries.length ? summary.historySeries : buildSnapshotHistorySeries(history, summary.pricing),
   };
 }
 
