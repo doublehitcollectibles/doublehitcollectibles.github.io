@@ -42,10 +42,10 @@ test("inline detail styles keep the shell flush and the stat tiles compact", () 
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stats\s*\{[\s\S]*?width:\s*min\(100%,\s*118px\);[\s\S]*?\}/,
+    /\.collection-inline-detail-stats\s*\{[\s\S]*?width:\s*min\(100%,\s*184px\);[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*30px;[\s\S]*?\}/,
+    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*24px;[\s\S]*?\}/,
   );
 });
