@@ -23,6 +23,7 @@ test("inline detail template removes spacer rows above and below the title", () 
   const inlineDetailBlock = extractBetween(collectionSource, "function renderInlineDetail", "function renderStatus");
 
   assert.match(inlineDetailBlock, /class="collection-inline-detail-title"/);
+  assert.doesNotMatch(inlineDetailBlock, /collection-inline-detail-media/);
   assert.doesNotMatch(inlineDetailBlock, /collection-eyebrow/);
   assert.doesNotMatch(inlineDetailBlock, /collection-inline-detail-copy/);
 });
@@ -32,10 +33,18 @@ test("inline detail styles keep the shell flush and the stat tiles compact", () 
 
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-shell\s*\{[\s\S]*?grid-template-areas:\s*"media header"\s*"body body";[\s\S]*?padding:\s*0;[\s\S]*?\}/,
+    /\.collection-inline-detail-shell\s*\{[\s\S]*?grid-template-areas:\s*"header"\s*"body";[\s\S]*?padding:\s*0;[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stats\s*\{[\s\S]*?width:\s*min\(100%,\s*148px\);[\s\S]*?\}/,
+    /\.collection-inline-detail-body\s*\{[\s\S]*?grid-template-areas:\s*"pills pills"\s*"stats history";[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-inline-detail-stats\s*\{[\s\S]*?width:\s*min\(100%,\s*136px\);[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*39px;[\s\S]*?\}/,
   );
 });
