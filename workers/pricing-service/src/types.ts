@@ -161,6 +161,30 @@ export interface PokemonHistoryPoint {
   priceSource: string;
 }
 
+export interface PokemonPriceVariant {
+  key: string;
+  label: string;
+  currency: string;
+  currentPrice: number | null;
+  sourceLabel: string;
+  updatedAt: string | null;
+  metrics: Record<string, number | null>;
+}
+
+export interface PokemonPriceHistorySeriesPoint {
+  capturedAt: string;
+  price: number;
+}
+
+export interface PokemonPriceHistorySeries {
+  key: string;
+  label: string;
+  currency: string;
+  sourceLabel: string;
+  color: string;
+  points: PokemonPriceHistorySeriesPoint[];
+}
+
 export interface PokemonCardSummary {
   kind: "api";
   id: string;
@@ -197,6 +221,9 @@ export interface PokemonCardSummary {
     metrics: Record<string, number | null>;
     updatedAt: string | null;
   };
+  priceVariants: PokemonPriceVariant[];
+  historySeries: PokemonPriceHistorySeries[];
+  marketSourceUrl: string | null;
   ownership: OwnedCollectionEntry | null;
   ownershipMetrics: {
     quantity: number;

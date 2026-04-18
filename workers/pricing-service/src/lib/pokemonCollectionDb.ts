@@ -63,7 +63,13 @@ export async function writePokemonCardSnapshot(
       (rawCard.tcgplayer as { updatedAt?: string } | undefined)?.updatedAt ?? null,
       (rawCard.cardmarket as { updatedAt?: string } | undefined)?.updatedAt ?? null,
       JSON.stringify(rawCard),
-      JSON.stringify(summary.pricing),
+      JSON.stringify({
+        pricing: summary.pricing,
+        priceVariants: summary.priceVariants,
+        historySeries: summary.historySeries,
+        marketSourceUrl: summary.marketSourceUrl,
+        externalPricingChecked: true,
+      }),
     )
     .run();
 }
