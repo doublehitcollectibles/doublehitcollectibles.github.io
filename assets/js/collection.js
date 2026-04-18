@@ -564,25 +564,30 @@
     }).format(date);
   }
 
-  function buildHistoryChart(card, currency) {
+  function buildHistoryChart(card, currency, options = {}) {
+    const compact = Boolean(options.compact);
     const historySeries = normalizeHistorySeries(card, currency);
     const usingProviderHistory =
       Boolean(card?.marketSourceUrl) &&
       Array.isArray(card?.historySeries) &&
       card.historySeries.some((series) => Array.isArray(series?.points) && series.points.length >= 2);
+    const chartClassName = `collection-history${compact ? " collection-history--compact" : ""}`;
+    const chartTitle = options.title || "Price History";
 
     if (!historySeries.length) {
       return `
-        <div class="collection-history">
-          <strong>Price History</strong>
+        <div class="${chartClassName}">
+          <strong>${escapeHtml(chartTitle)}</strong>
           <p class="collection-history-caption">History will appear here as live pricing data becomes available for this card.</p>
         </div>
       `;
     }
 
-    const width = 640;
-    const height = 220;
-    const padding = { top: 18, right: 12, bottom: 38, left: 54 };
+    const width = compact ? 420 : 640;
+    const height = compact ? 156 : 220;
+    const padding = compact
+      ? { top: 14, right: 8, bottom: 30, left: 44 }
+      : { top: 18, right: 12, bottom: 38, left: 54 };
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;
     const allPoints = historySeries.flatMap((series) =>
@@ -596,8 +601,8 @@
 
     if (!timestamps.length || values.length < 2) {
       return `
-        <div class="collection-history">
-          <strong>Price History</strong>
+        <div class="${chartClassName}">
+          <strong>${escapeHtml(chartTitle)}</strong>
           <p class="collection-history-caption">Not enough market history is available yet to draw this chart.</p>
         </div>
       `;
@@ -609,7 +614,7 @@
     const max = Math.max(...values);
     const range = max - min || 1;
     const xRange = maxX - minX || 1;
-    const gridLines = 4;
+    const gridLines = compact ? 3 : 4;
     const grid = Array.from({ length: gridLines }, (_, index) => {
       const ratio = index / (gridLines - 1);
       const y = padding.top + plotHeight * ratio;
@@ -619,7 +624,7 @@
         label: formatCurrency(price, currency),
       };
     });
-    const tickCount = Math.min(5, timestamps.length);
+    const tickCount = Math.min(compact ? 4 : 5, timestamps.length);
     const xTicks = Array.from({ length: tickCount }, (_, index) => {
       const ratio = tickCount === 1 ? 0 : index / (tickCount - 1);
       const timestamp = minX + xRange * ratio;
@@ -652,9 +657,9 @@
     });
 
     return `
-      <div class="collection-history">
+      <div class="${chartClassName}">
         <div class="collection-history-header">
-          <strong>Price History</strong>
+          <strong>${escapeHtml(chartTitle)}</strong>
           <div class="collection-history-legend">
             ${lines
               .map(
@@ -687,7 +692,7 @@
                 <polyline
                   fill="none"
                   stroke="${escapeHtml(series.color)}"
-                  stroke-width="4"
+                  stroke-width="${compact ? 3 : 4}"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   points="${series.pointsAttr}"
@@ -860,8 +865,8 @@
     const psa10Price = getPriceVariant(card, "psa10");
     const returnCopy = ownership.deltaPercent != null ? formatPercent(ownership.deltaPercent) : "Track purchase price";
     const quickCopy = truncateText(
-      card.flavorText || card.subtitle || "Compact detail for the selected card.",
-      170,
+      card.subtitle || card.flavorText || "Compact detail for the selected card.",
+      88,
     );
     const badges = [
       card.supertype,
@@ -869,6 +874,7 @@
       card.ownership?.condition,
       ownership.quantity ? `Qty ${ownership.quantity}` : null,
     ].filter(Boolean);
+    const historyMarkup = buildHistoryChart(card, rawPrice?.currency || card.pricing?.currency, { compact: true });
 
     return `
       <article
@@ -924,7 +930,9 @@
                 <p class="collection-inline-detail-stat-copy">${escapeHtml(returnCopy || "N/A")}</p>
               </article>
             </div>
-            <p class="collection-inline-detail-source">${escapeHtml(rawPrice?.sourceLabel || card.pricing?.sourceLabel || "Market pricing")}</p>
+            <div class="collection-inline-detail-history">
+              ${historyMarkup}
+            </div>
           </div>
         </div>
       </article>
@@ -965,6 +973,12 @@
           card.ownership?.condition || null,
         ].filter(Boolean);
 
+        const movementMarkup = hasMovement
+          ? `<div class="${directionClass}">
+              ${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)}) vs cost basis
+            </div>`
+          : '<div class="collection-movement collection-movement--empty" aria-hidden="true">&nbsp;</div>';
+
         return `
           <article
             class="collection-card collection-card--vertical${isSelected ? " collection-card--selected" : ""}"
@@ -983,13 +997,7 @@
                 ${renderMarketBlock("Raw", rawVariant, rawDelta)}
                 ${renderMarketBlock("PSA 10", psa10Variant, psa10Delta)}
               </div>
-              ${
-                hasMovement
-                  ? `<div class="${directionClass}">
-                      ${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)}) vs cost basis
-                    </div>`
-                  : ""
-              }
+              ${movementMarkup}
               <div class="collection-ownership-row">
                 <span>Qty</span>
                 <strong>${escapeHtml(String(ownershipMetrics.quantity || 1))}</strong>

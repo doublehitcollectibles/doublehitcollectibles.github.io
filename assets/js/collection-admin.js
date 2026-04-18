@@ -20,6 +20,7 @@
     searchForm: app.querySelector("[data-admin-search-form]"),
     searchFeedback: app.querySelector("[data-admin-search-feedback]"),
     searchResults: app.querySelector("[data-admin-search-results]"),
+    searchPagination: app.querySelector("[data-admin-search-pagination]"),
     selection: app.querySelector("[data-admin-selection]"),
     cardForm: app.querySelector("[data-admin-card-form]"),
     submitButton: app.querySelector("[data-admin-submit]"),
@@ -31,11 +32,15 @@
     token: window.localStorage.getItem(tokenStorageKey) || "",
     user: null,
     searchResults: [],
+    searchPage: 1,
     selectedCard: null,
     storedCards: [],
     cardLookup: {},
     editingEntryId: null,
   };
+
+  const SEARCH_RESULTS_PER_PAGE = 6;
+  const SEARCH_PAGE_BUTTON_WINDOW = 5;
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -265,9 +270,94 @@
     renderSelection();
   }
 
-  function renderSearchResults(cards) {
-    if (!cards.length) {
+  function getSearchPageCount() {
+    return Math.max(1, Math.ceil(state.searchResults.length / SEARCH_RESULTS_PER_PAGE));
+  }
+
+  function getVisibleSearchResults() {
+    const pageCount = getSearchPageCount();
+    const currentPage = Math.min(Math.max(state.searchPage, 1), pageCount);
+    const startIndex = (currentPage - 1) * SEARCH_RESULTS_PER_PAGE;
+    return state.searchResults.slice(startIndex, startIndex + SEARCH_RESULTS_PER_PAGE);
+  }
+
+  function updateSearchFeedback() {
+    if (!state.searchResults.length) {
+      return;
+    }
+
+    const pageCount = getSearchPageCount();
+    const currentPage = Math.min(Math.max(state.searchPage, 1), pageCount);
+    const start = (currentPage - 1) * SEARCH_RESULTS_PER_PAGE + 1;
+    const end = Math.min(start + SEARCH_RESULTS_PER_PAGE - 1, state.searchResults.length);
+
+    elements.searchFeedback.textContent = `${state.searchResults.length} result${state.searchResults.length === 1 ? "" : "s"} found. Showing ${start}-${end}${pageCount > 1 ? `, page ${currentPage} of ${pageCount}` : ""}.`;
+  }
+
+  function renderSearchPagination() {
+    if (!elements.searchPagination) {
+      return;
+    }
+
+    const pageCount = getSearchPageCount();
+
+    if (!state.searchResults.length || pageCount <= 1) {
+      elements.searchPagination.hidden = true;
+      elements.searchPagination.innerHTML = "";
+      return;
+    }
+
+    const currentPage = Math.min(Math.max(state.searchPage, 1), pageCount);
+    const halfWindow = Math.floor(SEARCH_PAGE_BUTTON_WINDOW / 2);
+    let startPage = Math.max(1, currentPage - halfWindow);
+    let endPage = Math.min(pageCount, startPage + SEARCH_PAGE_BUTTON_WINDOW - 1);
+    startPage = Math.max(1, endPage - SEARCH_PAGE_BUTTON_WINDOW + 1);
+    const pageButtons = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
+
+    elements.searchPagination.hidden = false;
+    elements.searchPagination.innerHTML = `
+      <span class="collection-admin-search-pagination-copy">Results</span>
+      <button type="button" class="collection-admin-pagination-button" data-admin-search-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""}>
+        Previous
+      </button>
+      ${pageButtons
+        .map(
+          (page) => `
+            <button
+              type="button"
+              class="collection-admin-pagination-button${page === currentPage ? " collection-admin-pagination-button--active" : ""}"
+              data-admin-search-page="${page}"
+              ${page === currentPage ? 'aria-current="page"' : ""}
+            >
+              ${page}
+            </button>`,
+        )
+        .join("")}
+      <button type="button" class="collection-admin-pagination-button" data-admin-search-page="${currentPage + 1}" ${currentPage === pageCount ? "disabled" : ""}>
+        Next
+      </button>
+    `;
+
+    Array.from(elements.searchPagination.querySelectorAll("[data-admin-search-page]")).forEach((button) => {
+      button.addEventListener("click", () => {
+        const page = Number.parseInt(button.getAttribute("data-admin-search-page") || "", 10);
+
+        if (!Number.isFinite(page)) {
+          return;
+        }
+
+        state.searchPage = Math.min(Math.max(page, 1), pageCount);
+        renderSearchResults();
+      });
+    });
+  }
+
+  function renderSearchResults() {
+    const cards = getVisibleSearchResults();
+
+    if (!state.searchResults.length) {
       elements.searchResults.innerHTML = "";
+      renderSearchPagination();
       return;
     }
 
@@ -305,6 +395,9 @@
         }
       });
     });
+
+    updateSearchFeedback();
+    renderSearchPagination();
   }
 
   function renderStoredCards() {
@@ -410,16 +503,24 @@
   async function searchCards(query) {
     if (!query.trim()) {
       state.searchResults = [];
+      state.searchPage = 1;
       elements.searchFeedback.textContent = "Enter a card name or card number to search.";
-      renderSearchResults([]);
+      renderSearchResults();
       return;
     }
 
     elements.searchFeedback.textContent = "Searching Pokemon TCG API...";
     const payload = await apiJson(`/api/pokemon/cards/search?q=${encodeURIComponent(query)}`);
     state.searchResults = Array.isArray(payload?.cards) ? payload.cards : [];
-    elements.searchFeedback.textContent = `${state.searchResults.length} result${state.searchResults.length === 1 ? "" : "s"} found.`;
-    renderSearchResults(state.searchResults);
+    state.searchPage = 1;
+
+    if (!state.searchResults.length) {
+      elements.searchFeedback.textContent = "No results found. Try a different card name or number.";
+      renderSearchResults();
+      return;
+    }
+
+    renderSearchResults();
   }
 
   async function editEntry(entry) {
