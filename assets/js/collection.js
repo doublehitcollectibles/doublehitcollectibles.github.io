@@ -864,10 +864,6 @@
       : null);
     const psa10Price = getPriceVariant(card, "psa10");
     const returnCopy = ownership.deltaPercent != null ? formatPercent(ownership.deltaPercent) : "Track purchase price";
-    const quickCopy = truncateText(
-      card.subtitle || card.flavorText || "Compact detail for the selected card.",
-      88,
-    );
     const badges = [
       card.supertype,
       card.rarity,
@@ -886,22 +882,20 @@
           <div class="collection-inline-detail-media">
             ${card.image ? `<img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}">` : ""}
           </div>
-          <div class="collection-inline-detail-main">
-            <div class="collection-inline-detail-header">
-              <div>
-                <p class="collection-eyebrow">${escapeHtml(card.setName || card.supertype || "Card Detail")}</p>
-                <h3 class="collection-inline-detail-title">${escapeHtml(card.title)}</h3>
-              </div>
-              <button
-                class="collection-inline-detail-close"
-                type="button"
-                data-inline-detail-close="${escapeHtml(targetKey)}"
-                aria-label="Close compact detail"
-              >
-                Hide
-              </button>
+          <div class="collection-inline-detail-header">
+            <div class="collection-inline-detail-header-copy">
+              <h3 class="collection-inline-detail-title">${escapeHtml(card.title)}</h3>
             </div>
-            <p class="collection-inline-detail-copy">${escapeHtml(quickCopy || "Selected card detail")}</p>
+            <button
+              class="collection-inline-detail-close"
+              type="button"
+              data-inline-detail-close="${escapeHtml(targetKey)}"
+              aria-label="Close compact detail"
+            >
+              Hide
+            </button>
+          </div>
+          <div class="collection-inline-detail-body">
             <div class="collection-inline-detail-pills">
               ${badges.map((badge) => `<span class="collection-inline-detail-pill">${escapeHtml(badge)}</span>`).join("")}
             </div>
