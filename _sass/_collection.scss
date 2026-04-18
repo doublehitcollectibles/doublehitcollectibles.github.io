@@ -605,7 +605,7 @@
   grid-template-areas:
     "header"
     "body";
-  row-gap: 2px;
+  row-gap: 1px;
   padding: 0;
   border-radius: 14px;
   border: 1px solid rgba(255, 214, 68, 0.24);
@@ -618,11 +618,12 @@
 .collection-inline-detail-body {
   grid-area: body;
   display: grid;
-  grid-template-columns: minmax(0, 136px) minmax(0, 1fr);
   grid-template-areas:
-    "pills pills"
-    "stats history";
-  gap: 3px 5px;
+    "pills"
+    "stats"
+    "history";
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
   align-items: start;
   min-width: 0;
 }
@@ -630,22 +631,10 @@
 .collection-inline-detail-header {
   grid-area: header;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-}
-
-.collection-inline-detail-header-copy {
-  display: grid;
   gap: 0;
   min-width: 0;
-}
-
-.collection-inline-detail-title {
-  margin: 0;
-  font-size: clamp(0.74rem, 1.16vw, 0.86rem);
-  line-height: 1.02;
 }
 
 .collection-inline-detail-close {
@@ -684,39 +673,48 @@
   grid-area: stats;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 136px);
+  width: min(100%, 118px);
   gap: 2px;
   justify-self: start;
 }
 
 .collection-inline-detail-stat {
-  min-block-size: 39px;
-  padding: 2px 3px;
+  min-block-size: 30px;
+  padding: 2px;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.05);
   display: grid;
   align-content: start;
+  overflow: hidden;
 }
 
 .collection-inline-detail-stat-label {
   margin: 0 0 1px;
-  font-size: 0.34rem;
+  font-size: 0.28rem;
+  line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
   color: rgba(255, 232, 156, 0.82);
 }
 
 .collection-inline-detail-stat-value {
   margin: 0;
-  font-size: 0.52rem;
-  line-height: 1.02;
+  font-size: 0.46rem;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #fff;
 }
 
 .collection-inline-detail-stat-copy,
 .collection-inline-detail-source {
-  font-size: 0.4rem;
-  line-height: 1.02;
+  font-size: 0.34rem;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: rgba(242, 247, 252, 0.68);
 }
 

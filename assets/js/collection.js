@@ -882,9 +882,6 @@
       >
         <div class="collection-inline-detail-shell">
           <div class="collection-inline-detail-header">
-            <div class="collection-inline-detail-header-copy">
-              <h3 class="collection-inline-detail-title">${escapeHtml(card.title)}</h3>
-            </div>
             <button
               class="collection-inline-detail-close"
               type="button"
