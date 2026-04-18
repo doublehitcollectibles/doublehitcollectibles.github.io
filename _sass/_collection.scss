@@ -40,6 +40,22 @@
   padding: 20px;
 }
 
+.collection-grid-wrap--tracked {
+  padding: 14px;
+}
+
+.collection-grid-wrap--tracked .collection-section-heading {
+  margin-bottom: 10px;
+}
+
+.collection-grid-wrap--tracked .collection-grid {
+  gap: 12px;
+}
+
+.collection-grid-wrap--tracked .collection-empty {
+  margin-top: 10px;
+}
+
 .collection-search-form--hero {
   margin-top: 18px;
   max-width: 720px;
@@ -669,6 +685,10 @@
   .collection-search,
   .collection-detail {
     padding: 16px;
+  }
+
+  .collection-grid-wrap--tracked {
+    padding: 12px;
   }
 
   .collection-search-form {
