@@ -66,7 +66,7 @@ page_class: collection-page
 
   <section class="collection-summary" data-collection-summary></section>
 
-  <section class="collection-grid-wrap">
+  <section class="collection-grid-wrap collection-grid-wrap--tracked">
     <div class="collection-section-heading">
       <h2>Tracked Collection</h2>
       <p>Your owned cards and products, rendered in a collection grid with current pricing and movement at a glance.</p>
