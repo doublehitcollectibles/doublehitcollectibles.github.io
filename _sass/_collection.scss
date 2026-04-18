@@ -281,6 +281,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 14px;
+  align-items: start;
 }
 
 .collection-search-results {
@@ -373,6 +374,7 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  align-self: start;
 }
 
 .collection-card:hover,
@@ -380,6 +382,11 @@
   transform: translateY(-4px);
   border-color: rgba(255, 214, 68, 0.45);
   box-shadow: 0 18px 28px rgba(0, 0, 0, 0.18);
+}
+
+.collection-card--selected {
+  border-color: rgba(255, 214, 68, 0.52);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.24), 0 0 0 1px rgba(255, 214, 68, 0.16);
 }
 
 .collection-card-media {
@@ -501,6 +508,131 @@
 
 .collection-ownership-row strong {
   color: #fff;
+}
+
+.collection-inline-detail {
+  grid-column: span var(--inline-detail-span, 2);
+  align-self: start;
+}
+
+.collection-inline-detail-shell {
+  display: grid;
+  grid-template-columns: minmax(96px, 124px) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 214, 68, 0.24);
+  background:
+    radial-gradient(circle at top right, rgba(255, 214, 68, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(16, 30, 36, 0.94), rgba(9, 18, 24, 0.98));
+  box-shadow: 0 20px 34px rgba(0, 0, 0, 0.22);
+}
+
+.collection-inline-detail-media {
+  display: flex;
+  align-items: flex-start;
+}
+
+.collection-inline-detail-media img {
+  width: 100%;
+  aspect-ratio: 0.72;
+  object-fit: contain;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.collection-inline-detail-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.collection-inline-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.collection-inline-detail-title {
+  margin: 4px 0 0;
+  font-size: clamp(1.08rem, 2vw, 1.4rem);
+  line-height: 1.02;
+}
+
+.collection-inline-detail-close {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.collection-inline-detail-copy,
+.collection-inline-detail-source {
+  margin: 0;
+}
+
+.collection-inline-detail-copy {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: rgba(242, 247, 252, 0.82);
+}
+
+.collection-inline-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.collection-inline-detail-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  color: rgba(246, 242, 232, 0.86);
+}
+
+.collection-inline-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.collection-inline-detail-stat {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.collection-inline-detail-stat-label {
+  margin: 0 0 5px;
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 232, 156, 0.82);
+}
+
+.collection-inline-detail-stat-value {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.12;
+  color: #fff;
+}
+
+.collection-inline-detail-stat-copy,
+.collection-inline-detail-source {
+  font-size: 0.76rem;
+  color: rgba(242, 247, 252, 0.68);
+}
+
+.collection-inline-detail-stat-copy {
+  margin: 6px 0 0;
 }
 
 .collection-search-form {
@@ -985,6 +1117,10 @@
     flex-direction: column;
   }
 
+  .collection-inline-detail-shell {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
   .collection-admin-entry-actions {
     justify-content: flex-start;
   }
@@ -1022,6 +1158,14 @@
   .collection-search-results {
     grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
     gap: 12px;
+  }
+
+  .collection-inline-detail-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .collection-inline-detail-media {
+    max-width: 120px;
   }
 
   .collection-search-form {
