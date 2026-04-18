@@ -95,32 +95,31 @@
   object-fit: contain;
 }
 
-.collection-grid-wrap--tracked .collection-card h3 {
+.collection-grid-wrap--tracked .collection-card .collection-card-title,
+.collection-search-results .collection-card .collection-card-title {
   margin: 0;
-  block-size: var(--collection-card-title-height);
-  font-size: 0.96rem;
-  line-height: 1.15;
-  color: #fff;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  min-block-size: var(--collection-card-title-height);
+  max-block-size: var(--collection-card-title-height);
+  font-size: 1rem;
+  line-height: 1.18;
+  font-weight: 700;
+  color: #fff4cf !important;
+  display: block;
   overflow: hidden;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.42);
+  opacity: 1;
 }
 
-.collection-grid-wrap--tracked .collection-card-copy {
+.collection-grid-wrap--tracked .collection-card .collection-card-subtitle,
+.collection-search-results .collection-card .collection-card-subtitle {
   margin: 0;
   block-size: var(--collection-card-copy-height);
   font-size: 0.82rem;
   line-height: 1.32;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  color: rgba(234, 241, 245, 0.76) !important;
+  display: block;
   overflow: hidden;
-}
-
-.collection-grid-wrap--tracked .collection-card-price {
-  margin-top: 0;
-  font-size: 1.18rem;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
 }
 
 .collection-grid-wrap--tracked .collection-card-markets {
@@ -361,29 +360,6 @@
   max-height: none;
   aspect-ratio: 0.72;
   object-fit: contain;
-}
-
-.collection-search-results .collection-card h3 {
-  margin: 0;
-  block-size: var(--collection-card-title-height);
-  font-size: 0.96rem;
-  line-height: 1.15;
-  color: #fff;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.collection-search-results .collection-card-copy {
-  margin: 0;
-  block-size: var(--collection-card-copy-height);
-  font-size: 0.82rem;
-  line-height: 1.32;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .collection-search-results .collection-card-price {

@@ -121,6 +121,24 @@
     return String(value).trim();
   }
 
+  function buildCollectionSubtitle(card) {
+    const subtitle = normalizeDisplayText(card?.subtitle);
+
+    if (subtitle) {
+      return subtitle;
+    }
+
+    const fallbackSubtitle = [
+      normalizeDisplayText(card?.setName),
+      normalizeDisplayText(card?.rarity),
+      normalizeDisplayText(card?.number),
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    return fallbackSubtitle || "Tracked collection item";
+  }
+
   function getGridColumnCount(target) {
     const isCompact = window.matchMedia("(max-width: 640px)").matches;
     const gap = isCompact ? 12 : 14;
@@ -787,6 +805,25 @@
     );
   }
 
+  function normalizeCollectionCardRecord(card) {
+    const displayTitle = getCardDisplayTitle(card);
+    const displaySubtitle = buildCollectionSubtitle(card);
+    const displayImage = normalizeDisplayText(card?.image) || normalizeDisplayText(card?.thumbnail);
+    const displayThumbnail = normalizeDisplayText(card?.thumbnail) || displayImage;
+
+    return {
+      ...card,
+      title: displayTitle,
+      cardName: normalizeDisplayText(card?.cardName) || displayTitle,
+      subtitle: displaySubtitle,
+      setName: normalizeDisplayText(card?.setName),
+      rarity: normalizeDisplayText(card?.rarity),
+      number: normalizeDisplayText(card?.number),
+      image: displayImage,
+      thumbnail: displayThumbnail,
+    };
+  }
+
   function renderDetail(card) {
     const displayTitle = getCardDisplayTitle(card);
     const ownership = card.ownershipMetrics || {};
@@ -959,6 +996,7 @@
 
   function renderCardMarkup(card, isSelected) {
         const displayTitle = getCardDisplayTitle(card);
+        const displaySubtitle = buildCollectionSubtitle(card);
         const ownershipMetrics = card.ownershipMetrics || {};
         const deltaAmount = ownershipMetrics.deltaAmount;
         const deltaPercent = ownershipMetrics.deltaPercent;
@@ -1002,8 +1040,8 @@
               ${card.thumbnail ? `<img src="${escapeHtml(card.thumbnail)}" alt="${escapeHtml(displayTitle)}" loading="lazy">` : ""}
             </div>
             <div class="collection-card-content">
-              <h3>${escapeHtml(displayTitle)}</h3>
-              <p class="collection-card-copy">${escapeHtml(card.subtitle || "Tracked collection item")}</p>
+              <h3 class="collection-card-title">${escapeHtml(displayTitle)}</h3>
+              <p class="collection-card-copy collection-card-subtitle">${escapeHtml(displaySubtitle)}</p>
               <div class="collection-card-badges">
                 ${badges.map((badge) => `<span class="collection-badge">${escapeHtml(badge)}</span>`).join("")}
               </div>
@@ -1109,7 +1147,7 @@
       card.title = normalizeDisplayText(ownership.label) || getCardDisplayTitle(card);
     }
 
-    return card;
+    return normalizeCollectionCardRecord(card);
   }
 
   async function fetchDirectCard(cardId, ownership) {
@@ -1161,7 +1199,7 @@
     state.ownedCollection = normalized;
 
     if (mode === "worker") {
-      return normalized.cards;
+      return normalized.cards.map((card) => normalizeCollectionCardRecord(card));
     }
 
     return Promise.all(normalized.cards.map((entry) => enrichOwnedEntry(entry)));
@@ -1256,7 +1294,9 @@
 
     if (apiBase) {
       const payload = await fetchJson(`${apiBase}/api/pokemon/cards/search?q=${encodeURIComponent(query)}`);
-      state.searchResults = Array.isArray(payload?.cards) ? payload.cards : [];
+      state.searchResults = Array.isArray(payload?.cards)
+        ? payload.cards.map((card) => normalizeCollectionCardRecord(card))
+        : [];
     } else {
       const params = new URLSearchParams({
         q: buildPokemonQuery(query),
