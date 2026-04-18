@@ -683,17 +683,17 @@
       <article class="collection-metric">
         <p class="collection-metric-label">Tracked Items</p>
         <p class="collection-metric-value">${cards.length}</p>
-        <p class="collection-metric-subtext">${totalItems} total units across your collection</p>
+        <p class="collection-metric-subtext">${totalItems} units in collection</p>
       </article>
       <article class="collection-metric">
         <p class="collection-metric-label">Cost Basis</p>
         <p class="collection-metric-value">${formatCurrency(investedValue, currency)}</p>
-        <p class="collection-metric-subtext">Based on the purchase prices you log for each collection entry</p>
+        <p class="collection-metric-subtext">Your logged purchase total</p>
       </article>
       <article class="collection-metric">
         <p class="collection-metric-label">Estimated Value</p>
         <p class="collection-metric-value">${formatCurrency(currentValue, currency)}</p>
-        <p class="collection-metric-subtext">Using the selected market price for each tracked item</p>
+        <p class="collection-metric-subtext">Current market estimate</p>
       </article>
       <article class="collection-metric">
         <p class="collection-metric-label">Unrealized Return</p>
