@@ -347,8 +347,9 @@ async function handlePokemonCardSearch(request: Request, env: Env): Promise<Resp
 async function handlePokemonCardDetail(request: Request, env: Env, cardId: string): Promise<Response> {
   const url = new URL(request.url);
   const priceType = url.searchParams.get("priceType") ?? undefined;
+  const forceRefresh = url.searchParams.get("refresh") === "1";
   const ownership = priceType ? { cardId, priceType } : { cardId };
-  const card = await getPokemonCardDetail(env, cardId, ownership, false);
+  const card = await getPokemonCardDetail(env, cardId, ownership, forceRefresh);
   return json({ card }, { headers: corsHeaders() });
 }
 

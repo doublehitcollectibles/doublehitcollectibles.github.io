@@ -381,20 +381,40 @@
     return (Array.isArray(card?.historySeries) ? card.historySeries : []).find((series) => series.key === key) || null;
   }
 
-  function getSeriesDelta(series) {
+  function getSeriesDelta(series, currentPrice) {
     if (!series || !Array.isArray(series.points) || series.points.length < 2) {
       return null;
     }
 
-    const first = Number(series.points[0]?.price);
-    const last = Number(series.points[series.points.length - 1]?.price);
+    const points = series.points
+      .map((point) => ({
+        timestamp: new Date(point?.capturedAt).getTime(),
+        price: Number(point?.price),
+      }))
+      .filter((point) => Number.isFinite(point.timestamp) && Number.isFinite(point.price) && point.price > 0);
 
-    if (!Number.isFinite(first) || !Number.isFinite(last) || first <= 0) {
+    if (points.length < 2) {
       return null;
     }
 
-    const delta = last - first;
-    const percent = (delta / first) * 100;
+    const latestPoint = points[points.length - 1];
+    const comparisonCutoff = latestPoint.timestamp - 24 * 60 * 60 * 1000;
+    const comparisonPoint =
+      [...points]
+        .reverse()
+        .find((point) => point.timestamp <= comparisonCutoff && point.timestamp < latestPoint.timestamp) ||
+      points[points.length - 2];
+    const latestPrice =
+      typeof currentPrice === "number" && Number.isFinite(currentPrice) && currentPrice > 0
+        ? currentPrice
+        : latestPoint.price;
+
+    if (!comparisonPoint || comparisonPoint.price <= 0) {
+      return null;
+    }
+
+    const delta = latestPrice - comparisonPoint.price;
+    const percent = (delta / comparisonPoint.price) * 100;
 
     return {
       delta,
@@ -493,6 +513,10 @@
 
   function buildHistoryChart(card, currency) {
     const historySeries = normalizeHistorySeries(card, currency);
+    const usingProviderHistory =
+      Boolean(card?.marketSourceUrl) &&
+      Array.isArray(card?.historySeries) &&
+      card.historySeries.some((series) => Array.isArray(series?.points) && series.points.length >= 2);
 
     if (!historySeries.length) {
       return `
@@ -553,7 +577,7 @@
         label: formatShortDate(timestamp),
       };
     });
-    const lines = historySeries.map((series) => {
+      const lines = historySeries.map((series) => {
       const points = series.points
         .map((point) => {
           const timestamp = new Date(point.capturedAt).getTime();
@@ -563,16 +587,14 @@
         })
         .join(" ");
       const latestPoint = series.points[series.points.length - 1];
-      const earliestPoint = series.points[0];
-      const delta = latestPoint.price - earliestPoint.price;
-      const percent = earliestPoint.price > 0 ? (delta / earliestPoint.price) * 100 : null;
+      const deltaMetrics = getSeriesDelta(series, latestPoint.price);
 
       return {
         ...series,
         pointsAttr: points,
         latestPrice: latestPoint.price,
-        delta,
-        percent,
+        delta: deltaMetrics?.delta ?? null,
+        percent: deltaMetrics?.percent ?? null,
       };
     });
 
@@ -638,11 +660,10 @@
             .join("")}
         </div>
         <p class="collection-history-caption">
-          History source:
           ${
-            card?.marketSourceUrl
-              ? `<a href="${escapeHtml(card.marketSourceUrl)}" target="_blank" rel="noreferrer">PriceCharting</a>`
-              : escapeHtml(lines[0].sourceLabel || "Market data")
+            usingProviderHistory
+              ? `Live provider history from <a href="${escapeHtml(card.marketSourceUrl)}" target="_blank" rel="noreferrer">PriceCharting</a>`
+              : `Stored Cloudflare snapshot history built from prior refreshes of ${escapeHtml(lines[0].sourceLabel || "market data")}`
           }
         </p>
       </div>
@@ -704,68 +725,72 @@
       : '<p class="collection-detail-copy">No additional card rules surfaced for this item.</p>';
 
     elements.detailPanel.innerHTML = `
-      <div class="collection-detail-hero">
-        <div>
+      <div class="collection-detail-layout">
+        <aside class="collection-detail-aside">
           ${card.image ? `<img class="collection-detail-image" src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}">` : ""}
-        </div>
-        <div>
-          <p class="collection-eyebrow">${escapeHtml(card.setName || card.supertype || "Collection Item")}</p>
-          <h2 class="collection-detail-title">${escapeHtml(card.title)}</h2>
-          <p class="collection-detail-copy">${escapeHtml(card.subtitle || "Tracked collection item")}</p>
-          ${card.flavorText ? `<p class="collection-detail-copy">${escapeHtml(card.flavorText)}</p>` : ""}
-          <div class="collection-detail-price-grid">
-            <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">Raw</p>
-              <p class="collection-detail-stat-value">${formatCurrency(rawPrice?.currentPrice ?? card.pricing?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
-              <p class="collection-detail-stat-copy">${escapeHtml(rawPrice?.sourceLabel || card.pricing?.sourceLabel || "Unavailable")}</p>
-            </article>
-            <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">PSA 10</p>
-              <p class="collection-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
-              <p class="collection-detail-stat-copy">${escapeHtml(psa10Price?.sourceLabel || "Unavailable")}</p>
-            </article>
-            <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">Cost Basis</p>
-              <p class="collection-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
-              <p class="collection-detail-stat-copy">Based on your logged purchase price and quantity</p>
-            </article>
-            <article class="collection-detail-stat">
-              <p class="collection-detail-stat-label">Return</p>
-              <p class="collection-detail-stat-value">
-                ${
-                  ownership.deltaAmount != null
-                    ? `${ownership.deltaAmount >= 0 ? "+" : ""}${formatCurrency(ownership.deltaAmount, card.pricing?.currency)} ${ownership.deltaPercent != null ? `(${formatPercent(ownership.deltaPercent)})` : ""}`
-                    : "Add purchase prices to calculate"
-                }
-              </p>
-              <p class="collection-detail-stat-copy">${escapeHtml(card.pricing?.sourceLabel || "Unavailable")}</p>
-            </article>
+        </aside>
+        <div class="collection-detail-main">
+          <div class="collection-detail-hero">
+            <div>
+              <p class="collection-eyebrow">${escapeHtml(card.setName || card.supertype || "Collection Item")}</p>
+              <h2 class="collection-detail-title">${escapeHtml(card.title)}</h2>
+              <p class="collection-detail-copy">${escapeHtml(card.subtitle || "Tracked collection item")}</p>
+              ${card.flavorText ? `<p class="collection-detail-copy">${escapeHtml(card.flavorText)}</p>` : ""}
+              <div class="collection-detail-price-grid">
+                <article class="collection-detail-stat">
+                  <p class="collection-detail-stat-label">Raw</p>
+                  <p class="collection-detail-stat-value">${formatCurrency(rawPrice?.currentPrice ?? card.pricing?.currentPrice, rawPrice?.currency || card.pricing?.currency)}</p>
+                  <p class="collection-detail-stat-copy">${escapeHtml(rawPrice?.sourceLabel || card.pricing?.sourceLabel || "Unavailable")}</p>
+                </article>
+                <article class="collection-detail-stat">
+                  <p class="collection-detail-stat-label">PSA 10</p>
+                  <p class="collection-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</p>
+                  <p class="collection-detail-stat-copy">${escapeHtml(psa10Price?.sourceLabel || "Unavailable")}</p>
+                </article>
+                <article class="collection-detail-stat">
+                  <p class="collection-detail-stat-label">Cost Basis</p>
+                  <p class="collection-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
+                  <p class="collection-detail-stat-copy">Based on your logged purchase price and quantity</p>
+                </article>
+                <article class="collection-detail-stat">
+                  <p class="collection-detail-stat-label">Return</p>
+                  <p class="collection-detail-stat-value">
+                    ${
+                      ownership.deltaAmount != null
+                        ? `${ownership.deltaAmount >= 0 ? "+" : ""}${formatCurrency(ownership.deltaAmount, card.pricing?.currency)} ${ownership.deltaPercent != null ? `(${formatPercent(ownership.deltaPercent)})` : ""}`
+                        : "Add purchase prices to calculate"
+                    }
+                  </p>
+                  <p class="collection-detail-stat-copy">${escapeHtml(card.pricing?.sourceLabel || "Unavailable")}</p>
+                </article>
+              </div>
+            </div>
+          </div>
+
+          ${buildHistoryChart(card, card.pricing?.currency)}
+
+          <div class="collection-detail-meta">
+            <div><dt>Set</dt><dd>${escapeHtml(card.setName || "N/A")}</dd></div>
+            <div><dt>Number</dt><dd>${escapeHtml(card.number || "N/A")}</dd></div>
+            <div><dt>Rarity</dt><dd>${escapeHtml(card.rarity || "N/A")}</dd></div>
+            <div><dt>Artist</dt><dd>${escapeHtml(card.artist || "N/A")}</dd></div>
+            <div><dt>HP</dt><dd>${escapeHtml(card.hp || "N/A")}</dd></div>
+            <div><dt>Types</dt><dd>${escapeHtml((card.types || []).join(", ") || "N/A")}</dd></div>
+            <div><dt>Weaknesses</dt><dd>${escapeHtml((card.weaknesses || []).map((item) => item.type).join(", ") || "N/A")}</dd></div>
+            <div><dt>Retreat</dt><dd>${escapeHtml((card.retreatCost || []).join(", ") || "N/A")}</dd></div>
+          </div>
+
+          <div class="collection-detail-columns">
+            <section class="collection-detail-column">
+              <h3>Attacks & Abilities</h3>
+              ${attacks}
+            </section>
+            <section class="collection-detail-column">
+              <h3>Card Context</h3>
+              ${rules}
+            </section>
           </div>
         </div>
-      </div>
-
-      ${buildHistoryChart(card, card.pricing?.currency)}
-
-      <div class="collection-detail-meta">
-        <div><dt>Set</dt><dd>${escapeHtml(card.setName || "N/A")}</dd></div>
-        <div><dt>Number</dt><dd>${escapeHtml(card.number || "N/A")}</dd></div>
-        <div><dt>Rarity</dt><dd>${escapeHtml(card.rarity || "N/A")}</dd></div>
-        <div><dt>Artist</dt><dd>${escapeHtml(card.artist || "N/A")}</dd></div>
-        <div><dt>HP</dt><dd>${escapeHtml(card.hp || "N/A")}</dd></div>
-        <div><dt>Types</dt><dd>${escapeHtml((card.types || []).join(", ") || "N/A")}</dd></div>
-        <div><dt>Weaknesses</dt><dd>${escapeHtml((card.weaknesses || []).map((item) => item.type).join(", ") || "N/A")}</dd></div>
-        <div><dt>Retreat</dt><dd>${escapeHtml((card.retreatCost || []).join(", ") || "N/A")}</dd></div>
-      </div>
-
-      <div class="collection-detail-columns">
-        <section class="collection-detail-column">
-          <h3>Attacks & Abilities</h3>
-          ${attacks}
-        </section>
-        <section class="collection-detail-column">
-          <h3>Card Context</h3>
-          ${rules}
-        </section>
       </div>
     `;
   }
@@ -796,8 +821,11 @@
             }
           : null);
         const psa10Variant = getPriceVariant(card, "psa10");
-        const rawDelta = getSeriesDelta(getHistorySeries(card, "raw") || getHistorySeries(card, "snapshot"));
-        const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"));
+        const rawDelta = getSeriesDelta(
+          getHistorySeries(card, "raw") || getHistorySeries(card, "snapshot"),
+          rawVariant?.currentPrice,
+        );
+        const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"), psa10Variant?.currentPrice);
         const badges = [
           card.supertype,
           card.ownership?.condition || null,
@@ -859,11 +887,15 @@
     return response.json();
   }
 
-  async function fetchWorkerCard(cardId, ownership) {
+  async function fetchWorkerCard(cardId, ownership, refresh) {
     const params = new URLSearchParams();
 
     if (ownership?.priceType) {
       params.set("priceType", ownership.priceType);
+    }
+
+    if (refresh) {
+      params.set("refresh", "1");
     }
 
     const suffix = params.toString() ? `?${params.toString()}` : "";
@@ -941,13 +973,8 @@
   async function selectCard(card) {
     let selectedCard = card;
 
-    if (
-      apiBase &&
-      card.kind === "api" &&
-      (!Array.isArray(card.history) || !card.history.length) &&
-      !card.ownership?.source
-    ) {
-      selectedCard = await fetchWorkerCard(card.id, card.ownership);
+    if (apiBase && card.kind === "api") {
+      selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
     }
 
     state.selectedCard = selectedCard;
