@@ -190,3 +190,36 @@ test("pricecharting candidate scoring rejects loose cross-card matches like Mewt
 
   assert.ok(scoreCandidate(card, correctCandidate) > scoreCandidate(card, wrongCandidate));
 });
+
+test("pricecharting product-page validation rejects direct redirects to the wrong card page", () => {
+  const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
+  const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
+  const buildHelpers = new Function(`${transpile(helperBlock)}; return { productPageMatchesCard };`);
+  const { productPageMatchesCard } = buildHelpers();
+
+  const card = {
+    name: "Mewtwo",
+    number: "52",
+    preferredPriceType: "normal",
+    set: {
+      name: "Scarlet & Violet Black Star Promos",
+    },
+  };
+
+  const correctHtml = "<title>Mewtwo #52 Prices | Pokemon Promo | Pokemon Cards</title>";
+  const wrongHtml = "<title>Mewtwo & Mew GX #52 Prices | Pokemon Japanese Tag All Stars | Pokemon Cards</title>";
+
+  assert.equal(
+    productPageMatchesCard(card, "https://www.pricecharting.com/game/pokemon-promo/mewtwo-52", correctHtml),
+    true,
+  );
+  assert.equal(
+    productPageMatchesCard(
+      card,
+      "https://www.pricecharting.com/game/pokemon-japanese-tag-all-stars/mewtwo-&-mew-gx-52",
+      wrongHtml,
+    ),
+    false,
+  );
+  assert.match(source, /productPageMatchesCard\(card, finalUrl, html\)/);
+});

@@ -355,6 +355,71 @@ function bestCandidateUrl(html: string, card: PriceChartingLookupCard): string |
   return best?.candidate.url ?? null;
 }
 
+function parseProductPageCandidate(
+  sourceUrl: string,
+  html: string,
+): PriceChartingSearchCandidate | null {
+  const titleMatch = html.match(/<title>\s*([^<]+?)\s*<\/title>/i);
+  const rawTitle = normalizeQueryPart(decodeHtmlEntities(titleMatch?.[1]));
+
+  if (!rawTitle) {
+    return null;
+  }
+
+  const [titleSegment = "", setSegment = ""] = rawTitle.split("|").map((segment) => normalizeQueryPart(segment));
+  const title = normalizeQueryPart(titleSegment.replace(/\s+prices?$/i, ""));
+  const setName = normalizeQueryPart(setSegment);
+
+  if (!title) {
+    return null;
+  }
+
+  return {
+    url: sourceUrl,
+    title,
+    setName,
+  };
+}
+
+function productPageMatchesCard(
+  card: PriceChartingLookupCard,
+  sourceUrl: string,
+  html: string,
+): boolean {
+  const candidate = parseProductPageCandidate(sourceUrl, html);
+
+  if (!candidate) {
+    return false;
+  }
+
+  const normalizedName = normalizeForMatch(card.name);
+  const normalizedNumber = normalizeForMatch(card.number);
+  const normalizedTitle = normalizeForMatch(candidate.title);
+  const variantHints = toVariantHints(card.preferredPriceType).map((hint) => normalizeForMatch(hint));
+  const nameTokens = tokenizeNormalized(normalizedName);
+  const score = scoreCandidate(card, candidate);
+
+  if (normalizedName) {
+    if (!includesAllTokens(normalizedTitle, nameTokens)) {
+      return false;
+    }
+  }
+
+  if (extraTitleTokenPenalty(normalizedTitle, nameTokens, normalizedNumber, variantHints) > 0) {
+    return false;
+  }
+
+  if (normalizedNumber) {
+    const hasNumber = new RegExp(`(^|\\s)${escapeRegex(normalizedNumber)}($|\\s)`).test(normalizedTitle);
+
+    if (!hasNumber && !candidate.url.toLowerCase().includes(`-${normalizedNumber}`)) {
+      return false;
+    }
+  }
+
+  return score >= 110;
+}
+
 async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Promise<PriceChartingProductPage | null> {
   const queries = buildSearchQueries(card);
 
@@ -372,7 +437,7 @@ async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Prom
     const html = await response.text();
     const finalUrl = (response.url || searchUrl.toString()).split("?")[0];
 
-    if (finalUrl.includes("/game/") || isProductPageHtml(html)) {
+    if ((finalUrl.includes("/game/") || isProductPageHtml(html)) && productPageMatchesCard(card, finalUrl, html)) {
       return {
         sourceUrl: finalUrl,
         html,
