@@ -292,6 +292,55 @@ function buildRawVariant(basePricing: PokemonCardSummary["pricing"]): PokemonPri
   };
 }
 
+function parseUpdatedAt(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function latestSeriesCapturedAt(series: PokemonPriceHistorySeries | null | undefined): string | null {
+  const points = Array.isArray(series?.points) ? series.points : [];
+
+  if (!points.length) {
+    return null;
+  }
+
+  return points[points.length - 1]?.capturedAt ?? null;
+}
+
+function enrichVariantUpdatedAt(
+  variant: PokemonPriceVariant,
+  historySeries: PokemonPriceHistorySeries[],
+): PokemonPriceVariant {
+  if (variant.updatedAt) {
+    return variant;
+  }
+
+  const matchingSeries = historySeries.find((series) => series.key === variant.key);
+  const inferredUpdatedAt = latestSeriesCapturedAt(matchingSeries);
+
+  return inferredUpdatedAt
+    ? {
+        ...variant,
+        updatedAt: inferredUpdatedAt,
+      }
+    : variant;
+}
+
+function buildPricingFromVariant(variant: PokemonPriceVariant): PokemonCardSummary["pricing"] {
+  return {
+    priceType: variant.key,
+    currency: variant.currency,
+    currentPrice: variant.currentPrice,
+    sourceLabel: variant.sourceLabel,
+    metrics: variant.metrics,
+    updatedAt: variant.updatedAt,
+  };
+}
+
 function buildSnapshotHistorySeries(
   history: PokemonHistoryPoint[],
   pricing: PokemonCardSummary["pricing"],
@@ -424,31 +473,31 @@ function buildPricingPresentation(
   history: PokemonHistoryPoint[],
   storedPayload?: StoredPricePayload | null,
 ) {
-  const externalVariants = storedPayload?.priceVariants || [];
+  const storedHistorySeries = storedPayload?.historySeries || [];
+  const externalVariants = (storedPayload?.priceVariants || []).map((variant) => enrichVariantUpdatedAt(variant, storedHistorySeries));
   const baseRawVariant = buildRawVariant(basePricing);
   const externalRawVariant = externalVariants.find((variant) => variant.key === "raw") || null;
-  const rawVariant = baseRawVariant || externalRawVariant;
+  const baseRawUpdatedAt = parseUpdatedAt(baseRawVariant?.updatedAt);
+  const externalRawUpdatedAt = parseUpdatedAt(externalRawVariant?.updatedAt);
+  const preferExternalRaw = Boolean(
+    externalRawVariant &&
+      (!baseRawVariant || !baseRawUpdatedAt || (externalRawUpdatedAt && externalRawUpdatedAt > baseRawUpdatedAt)),
+  );
+  const rawVariant = preferExternalRaw ? externalRawVariant : baseRawVariant || externalRawVariant;
   const otherVariants = externalVariants.filter((variant) => variant.key !== "raw");
   const priceVariants = [rawVariant, ...otherVariants].filter(Boolean) as PokemonPriceVariant[];
 
   const pricing =
-    basePricing.currentPrice != null
-      ? basePricing
-      : rawVariant
-        ? {
-            priceType: rawVariant.key,
-            currency: rawVariant.currency,
-            currentPrice: rawVariant.currentPrice,
-            sourceLabel: rawVariant.sourceLabel,
-            metrics: rawVariant.metrics,
-            updatedAt: rawVariant.updatedAt,
-          }
-        : basePricing;
-
-  const historySeries =
-    storedPayload?.historySeries && storedPayload.historySeries.length
-      ? storedPayload.historySeries
-      : buildSnapshotHistorySeries(history, pricing);
+    rawVariant && (preferExternalRaw || basePricing.currentPrice == null)
+      ? buildPricingFromVariant(rawVariant)
+      : basePricing;
+  const snapshotHistorySeries = buildSnapshotHistorySeries(history, pricing);
+  const rawHistorySeries =
+    preferExternalRaw && storedHistorySeries.find((series) => series.key === "raw")
+      ? [storedHistorySeries.find((series) => series.key === "raw") as PokemonPriceHistorySeries]
+      : snapshotHistorySeries;
+  const supplementalHistorySeries = storedHistorySeries.filter((series) => series.key !== "raw");
+  const historySeries = [...rawHistorySeries, ...supplementalHistorySeries];
 
   return {
     pricing,
@@ -608,8 +657,16 @@ export async function getPokemonCardDetail(
       (storedPayload?.priceVariants && storedPayload.priceVariants.length) ||
       (storedPayload?.historySeries && storedPayload.historySeries.length),
   );
+  const snapshotHasResolvedVariantTimestamps =
+    !storedPayload?.priceVariants?.length || storedPayload.priceVariants.every((variant) => Boolean(variant.updatedAt));
 
-  if (!forceRefresh && latestSnapshot && Date.now() - latestCapturedAt < cacheFreshMs && snapshotHasExternalPricing) {
+  if (
+    !forceRefresh &&
+    latestSnapshot &&
+    Date.now() - latestCapturedAt < cacheFreshMs &&
+    snapshotHasExternalPricing &&
+    snapshotHasResolvedVariantTimestamps
+  ) {
     const rawCard = JSON.parse(latestSnapshot.card_payload) as PokemonCard;
     const history = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 30);
     return mapPokemonCardSummary(rawCard, ownership, history, storedPayload);

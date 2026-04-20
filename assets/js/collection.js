@@ -1232,6 +1232,12 @@
     elements.detailPanel.innerHTML = defaultDetailPanelMarkup;
   }
 
+  function syncCardAcrossCollections(updatedCard) {
+    const replaceCard = (card) => (card.id === updatedCard.id ? updatedCard : card);
+    state.ownedCards = state.ownedCards.map(replaceCard);
+    state.searchResults = state.searchResults.map(replaceCard);
+  }
+
   async function selectCard(card, options = {}) {
     const requestId = ++state.selectionRequestId;
     const inlineTarget = options.inlineTarget || null;
@@ -1256,6 +1262,7 @@
     }
 
     state.selectedCard = selectedCard;
+    syncCardAcrossCollections(selectedCard);
     if (inlineTarget) {
       state.inlineDetailCardId = selectedCard.id;
     }
