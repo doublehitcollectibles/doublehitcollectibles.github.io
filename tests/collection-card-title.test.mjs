@@ -96,3 +96,16 @@ test("collection card styles make the title and subtitle more noticeable", () =>
     /\.collection-grid-wrap--tracked \.collection-card \.collection-card-subtitle,\s*\.collection-search-results \.collection-card \.collection-card-subtitle\s*\{[\s\S]*?color:\s*rgba\(234, 241, 245, 0\.76\)\s*!important;[\s\S]*?\}/,
   );
 });
+
+test("collection card title and subtitle reset inherited post-content spacing so text stays visible", () => {
+  const stylesheet = readFile("_sass/_collection.scss");
+
+  assert.match(
+    stylesheet,
+    /\.collection-grid-wrap--tracked \.collection-card \.collection-card-title,\s*\.collection-search-results \.collection-card \.collection-card-title\s*\{[\s\S]*?padding:\s*0\s*!important;[\s\S]*?max-width:\s*none;[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-grid-wrap--tracked \.collection-card \.collection-card-subtitle,\s*\.collection-search-results \.collection-card \.collection-card-subtitle\s*\{[\s\S]*?padding:\s*0\s*!important;[\s\S]*?max-width:\s*none;[\s\S]*?\}/,
+  );
+});
