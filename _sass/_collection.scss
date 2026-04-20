@@ -98,8 +98,10 @@
 .collection-grid-wrap--tracked .collection-card .collection-card-title,
 .collection-search-results .collection-card .collection-card-title {
   margin: 0;
+  padding: 0 !important;
   min-block-size: var(--collection-card-title-height);
   max-block-size: var(--collection-card-title-height);
+  max-width: none;
   font-size: 1rem;
   line-height: 1.18;
   font-weight: 700;
@@ -113,7 +115,9 @@
 .collection-grid-wrap--tracked .collection-card .collection-card-subtitle,
 .collection-search-results .collection-card .collection-card-subtitle {
   margin: 0;
+  padding: 0 !important;
   block-size: var(--collection-card-copy-height);
+  max-width: none;
   font-size: 0.82rem;
   line-height: 1.32;
   color: rgba(234, 241, 245, 0.76) !important;
