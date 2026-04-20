@@ -617,10 +617,10 @@
       `;
     }
 
-    const width = compact ? 420 : 640;
-    const height = compact ? 156 : 220;
+    const width = compact ? 460 : 640;
+    const height = compact ? 188 : 220;
     const padding = compact
-      ? { top: 14, right: 8, bottom: 30, left: 44 }
+      ? { top: 16, right: 12, bottom: 34, left: 48 }
       : { top: 18, right: 12, bottom: 38, left: 54 };
     const plotWidth = width - padding.left - padding.right;
     const plotHeight = height - padding.top - padding.bottom;

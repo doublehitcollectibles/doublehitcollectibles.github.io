@@ -56,18 +56,35 @@ test("inline detail styles keep the shell flush and the stat tiles compact", () 
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stats\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?width:\s*min\(100%,\s*228px\);[\s\S]*?\}/,
+    /\.collection-inline-detail-stats\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?width:\s*min\(100%,\s*296px\);[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*14px;[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*auto minmax\(0,\s*1fr\);[\s\S]*?\}/,
+    /\.collection-inline-detail-stat\s*\{[\s\S]*?min-block-size:\s*24px;[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*auto minmax\(0,\s*1fr\);[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stat-label\s*\{[\s\S]*?font-size:\s*6px;[\s\S]*?\}/,
+    /\.collection-inline-detail-stat-label\s*\{[\s\S]*?font-size:\s*9px;[\s\S]*?\}/,
   );
   assert.match(
     stylesheet,
-    /\.collection-inline-detail-stat-value\s*\{[\s\S]*?font-size:\s*8px;[\s\S]*?justify-self:\s*end;[\s\S]*?\}/,
+    /\.collection-inline-detail-stat-value\s*\{[\s\S]*?font-size:\s*14px;[\s\S]*?justify-self:\s*end;[\s\S]*?\}/,
   );
+  assert.match(
+    stylesheet,
+    /\.collection-history--compact svg\s*\{[\s\S]*?height:\s*132px;[\s\S]*?\}/,
+  );
+  assert.match(
+    stylesheet,
+    /\.collection-history--compact \.collection-history-summary-card strong\s*\{[\s\S]*?font-size:\s*0\.96rem;[\s\S]*?\}/,
+  );
+});
+
+test("compact history chart uses a larger readable drawing area", () => {
+  const collectionSource = readFile("assets/js/collection.js");
+  const historyBlock = extractBetween(collectionSource, "function buildHistoryChart", "function renderSummary");
+
+  assert.match(historyBlock, /const width = compact \? 460 : 640;/);
+  assert.match(historyBlock, /const height = compact \? 188 : 220;/);
+  assert.match(historyBlock, /const padding = compact\s*\? \{ top: 16, right: 12, bottom: 34, left: 48 \}/);
 });

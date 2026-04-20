@@ -652,26 +652,26 @@
   grid-area: stats;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  width: min(100%, 228px);
-  gap: 2px;
+  width: min(100%, 296px);
+  gap: 5px;
   justify-self: start;
 }
 
 .collection-inline-detail-stat {
-  min-block-size: 14px;
-  padding: 1px 5px;
-  border-radius: 5px;
+  min-block-size: 24px;
+  padding: 4px 9px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  column-gap: 6px;
+  column-gap: 10px;
   overflow: hidden;
 }
 
 .collection-inline-detail-stat-label {
-  font-size: 6px;
-  line-height: 1;
+  font-size: 9px;
+  line-height: 1.05;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   overflow: hidden;
@@ -683,8 +683,8 @@
 
 .collection-inline-detail-stat-value {
   min-width: 0;
-  font-size: 8px;
-  line-height: 1;
+  font-size: 14px;
+  line-height: 1.08;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1105,32 +1105,32 @@
 }
 
 .collection-history--compact {
-  padding: 6px 7px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
 }
 
 .collection-history--compact .collection-history-header {
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .collection-history--compact .collection-history-header strong {
-  font-size: 0.66rem;
+  font-size: 0.84rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .collection-history--compact .collection-history-legend {
-  gap: 5px;
+  gap: 8px;
 }
 
 .collection-history--compact .collection-history-legend-item {
-  gap: 4px;
-  font-size: 0.54rem;
+  gap: 5px;
+  font-size: 0.72rem;
 }
 
 .collection-history--compact .collection-history-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .collection-history-header {
@@ -1170,7 +1170,7 @@
 }
 
 .collection-history--compact svg {
-  height: 84px;
+  height: 132px;
 }
 
 .collection-history-grid-line {
@@ -1184,7 +1184,7 @@
 }
 
 .collection-history--compact .collection-history-axis-label {
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .collection-history-summary {
@@ -1196,8 +1196,8 @@
 
 .collection-history--compact .collection-history-summary {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 5px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .collection-history-summary-card {
@@ -1209,9 +1209,9 @@
 }
 
 .collection-history--compact .collection-history-summary-card {
-  gap: 2px;
-  padding: 5px 6px;
-  border-radius: 10px;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
 }
 
 .collection-history-summary-card strong {
@@ -1219,7 +1219,7 @@
 }
 
 .collection-history--compact .collection-history-summary-card strong {
-  font-size: 0.72rem;
+  font-size: 0.96rem;
 }
 
 .collection-history-summary-label {
@@ -1230,7 +1230,7 @@
 }
 
 .collection-history--compact .collection-history-summary-label {
-  font-size: 0.5rem;
+  font-size: 0.66rem;
 }
 
 .collection-history-summary-delta {
@@ -1239,8 +1239,8 @@
 }
 
 .collection-history--compact .collection-history-summary-delta {
-  font-size: 0.54rem;
-  line-height: 1.16;
+  font-size: 0.72rem;
+  line-height: 1.24;
 }
 
 .collection-history-summary-delta--up {
@@ -1258,8 +1258,8 @@
 }
 
 .collection-history--compact .collection-history-caption {
-  margin-top: 4px;
-  font-size: 0.56rem;
+  margin-top: 8px;
+  font-size: 0.68rem;
 }
 
 .collection-history-caption a {
