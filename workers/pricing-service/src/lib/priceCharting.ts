@@ -102,6 +102,14 @@ function buildSeriesPoints(points: Array<[number, number]> | undefined) {
     }));
 }
 
+function latestSeriesCapturedAt(points: Array<{ capturedAt: string; price: number }>): string | null {
+  if (!points.length) {
+    return null;
+  }
+
+  return points[points.length - 1]?.capturedAt ?? null;
+}
+
 function latestSeriesPrice(points: Array<{ capturedAt: string; price: number }>): number | null {
   if (!points.length) {
     return null;
@@ -190,6 +198,27 @@ interface PriceChartingSearchCandidate {
   setName: string;
 }
 
+const IGNORED_TITLE_TOKENS = new Set([
+  "card",
+  "cards",
+  "english",
+  "ex",
+  "gx",
+  "holo",
+  "holofoil",
+  "japanese",
+  "pokemon",
+  "promo",
+  "promos",
+  "reverse",
+  "sv",
+  "swsh",
+  "v",
+  "vmax",
+  "vstar",
+  "xy",
+]);
+
 function parseSearchCandidates(html: string): PriceChartingSearchCandidate[] {
   const candidates: PriceChartingSearchCandidate[] = [];
   const rowPattern =
@@ -218,12 +247,52 @@ function overlapCount(tokens: string[], haystack: string): number {
   return tokens.filter((token) => haystack.includes(token)).length;
 }
 
+function tokenizeNormalized(value: string): string[] {
+  return value.split(" ").filter(Boolean);
+}
+
+function normalizeCandidateUrl(candidateUrl: string): string {
+  try {
+    const pathname = new URL(decodeHtmlEntities(candidateUrl)).pathname;
+    return normalizeForMatch(pathname.replace(/^\/game\//i, "").replace(/\//g, " "));
+  } catch {
+    return normalizeForMatch(candidateUrl);
+  }
+}
+
+function extraTitleTokenPenalty(
+  normalizedTitle: string,
+  nameTokens: string[],
+  normalizedNumber: string,
+  variantHints: string[],
+): number {
+  const titleTokens = tokenizeNormalized(normalizedTitle);
+  const allowedTokens = new Set<string>([
+    ...nameTokens,
+    normalizedNumber,
+    ...variantHints.flatMap((hint) => tokenizeNormalized(hint)),
+  ]);
+  let penalty = 0;
+
+  for (const token of titleTokens) {
+    if (!token || allowedTokens.has(token) || IGNORED_TITLE_TOKENS.has(token)) {
+      continue;
+    }
+
+    penalty += 18;
+  }
+
+  return penalty;
+}
+
 function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingSearchCandidate): number {
   const normalizedName = normalizeForMatch(card.name);
   const normalizedNumber = normalizeForMatch(card.number);
   const normalizedSet = normalizeForMatch(card.set?.name);
   const normalizedTitle = normalizeForMatch(candidate.title);
   const normalizedCandidateSet = normalizeForMatch(candidate.setName);
+  const normalizedCandidateUrl = normalizeCandidateUrl(candidate.url);
+  const normalizedCandidateContext = `${normalizedCandidateSet} ${normalizedCandidateUrl}`.trim();
   const variantHints = toVariantHints(card.preferredPriceType).map((hint) => normalizeForMatch(hint));
   const nameTokens = normalizedName.split(" ").filter(Boolean);
   const setTokens = normalizedSet.split(" ").filter(Boolean);
@@ -248,12 +317,12 @@ function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingS
   }
 
   if (normalizedSet) {
-    if (normalizedCandidateSet === normalizedSet) {
+    if (normalizedCandidateContext === normalizedSet || normalizedCandidateContext.includes(normalizedSet)) {
       score += 70;
-    } else if (includesAllTokens(normalizedCandidateSet, setTokens)) {
+    } else if (includesAllTokens(normalizedCandidateContext, setTokens)) {
       score += 54;
     } else {
-      score += overlapCount(setTokens, normalizedCandidateSet) * 9;
+      score += overlapCount(setTokens, normalizedCandidateContext) * 9;
     }
   }
 
@@ -263,6 +332,8 @@ function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingS
   } else if (/\b(reverse holo|reverse holofoil|1st edition|holofoil|holo)\b/.test(normalizedTitle)) {
     score -= 12;
   }
+
+  score -= extraTitleTokenPenalty(normalizedTitle, nameTokens, normalizedNumber, variantHints);
 
   return score;
 }
@@ -356,7 +427,7 @@ export async function fetchPriceChartingPricing(
       currency: "USD",
       currentPrice: rawPrice,
       sourceLabel: "PriceCharting Ungraded",
-      updatedAt: null,
+      updatedAt: latestSeriesCapturedAt(rawPoints),
       metrics: {},
     },
     {
@@ -365,7 +436,7 @@ export async function fetchPriceChartingPricing(
       currency: "USD",
       currentPrice: psa10Price,
       sourceLabel: "PriceCharting PSA 10",
-      updatedAt: null,
+      updatedAt: latestSeriesCapturedAt(psaPoints),
       metrics: {},
     },
   ].filter((variant) => variant.currentPrice != null);
