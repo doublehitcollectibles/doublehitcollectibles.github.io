@@ -38,10 +38,49 @@ function corsHeaders(): HeadersInit {
   };
 }
 
+function normalizeEntrySource(value: unknown): "api" | "custom" {
+  return String(value || "").trim().toLowerCase() === "custom" ? "custom" : "api";
+}
+
+function normalizeOptionalText(value: unknown): string | undefined {
+  const normalized = String(value ?? "").trim();
+  return normalized || undefined;
+}
+
+function normalizeOptionalNumber(value: unknown): number | undefined {
+  if (value == null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function slugifyCollectionValue(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+function ensureCollectionCardId(entry: OwnedCollectionEntry): string {
+  if (entry.cardId) {
+    return entry.cardId;
+  }
+
+  const titleSeed = entry.label || entry.series || entry.game || entry.category || "item";
+  return `custom:${slugifyCollectionValue(titleSeed)}:${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function isTrackedPokemonEntry(entry: OwnedCollectionEntry): boolean {
+  return normalizeEntrySource(entry.source) === "api" && Boolean(entry.cardId);
+}
+
 async function getAllTrackedPokemonEntries(env: Env): Promise<OwnedCollectionEntry[]> {
   const staticEntries = getTrackedPokemonEntries();
   const storedEntries = await listCollectionCards(env.PRICING_DB);
-  return [...staticEntries, ...storedEntries];
+  return [...staticEntries, ...storedEntries.filter(isTrackedPokemonEntry)];
 }
 
 async function handlePriceRequest(request: Request, env: Env): Promise<Response> {
@@ -226,16 +265,36 @@ async function handleAuthSession(request: Request, env: Env): Promise<Response> 
 }
 
 function parseCollectionCardBody(body: Record<string, unknown>): OwnedCollectionEntry {
-  return {
-    cardId: String(body.cardId || "").trim(),
-    label: body.label ? String(body.label) : undefined,
+  const source = normalizeEntrySource(body.source);
+  const entry: OwnedCollectionEntry = {
+    source,
+    cardId: normalizeOptionalText(body.cardId),
+    label: normalizeOptionalText(body.label),
     quantity: body.quantity != null ? Number(body.quantity) : 1,
-    purchasePrice: body.purchasePrice != null && body.purchasePrice !== "" ? Number(body.purchasePrice) : undefined,
-    purchaseDate: body.purchaseDate ? String(body.purchaseDate) : undefined,
-    priceType: body.priceType ? String(body.priceType) : undefined,
-    condition: body.condition ? String(body.condition) : undefined,
-    notes: body.notes ? String(body.notes) : undefined,
+    purchasePrice: normalizeOptionalNumber(body.purchasePrice),
+    purchaseDate: normalizeOptionalText(body.purchaseDate),
+    condition: normalizeOptionalText(body.condition),
+    notes: normalizeOptionalText(body.notes),
   };
+
+  if (source === "custom") {
+    entry.cardId = ensureCollectionCardId(entry);
+    entry.game = normalizeOptionalText(body.game);
+    entry.category = normalizeOptionalText(body.category);
+    entry.series = normalizeOptionalText(body.series);
+    entry.variant = normalizeOptionalText(body.variant);
+    entry.itemNumber = normalizeOptionalText(body.itemNumber);
+    entry.image = normalizeOptionalText(body.image);
+    entry.artist = normalizeOptionalText(body.artist);
+    entry.description = normalizeOptionalText(body.description);
+    entry.currency = normalizeOptionalText(body.currency) || "USD";
+    entry.currentPrice = normalizeOptionalNumber(body.currentPrice);
+    entry.priceSource = normalizeOptionalText(body.priceSource);
+    return entry;
+  }
+
+  entry.priceType = normalizeOptionalText(body.priceType);
+  return entry;
 }
 
 async function handleCollectionCardsGet(_request: Request, env: Env): Promise<Response> {
@@ -274,13 +333,19 @@ async function handleCollectionCardsCreate(request: Request, env: Env): Promise<
   const body = (await request.json()) as Record<string, unknown>;
   const entry = parseCollectionCardBody(body);
 
-  if (!entry.cardId) {
+  if (normalizeEntrySource(entry.source) === "api" && !entry.cardId) {
     return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
+  }
+
+  if (normalizeEntrySource(entry.source) === "custom" && !entry.label) {
+    return json({ error: "label is required for custom collection entries." }, { status: 400, headers: corsHeaders() });
   }
 
   await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
   await insertCollectionCard(env.PRICING_DB, session.username, entry);
-  await refreshTrackedPokemonCollection(env, [entry]);
+  if (isTrackedPokemonEntry(entry)) {
+    await refreshTrackedPokemonCollection(env, [entry]);
+  }
   return json({ ok: true }, { headers: corsHeaders() });
 }
 
@@ -294,8 +359,12 @@ async function handleCollectionCardsUpdate(request: Request, env: Env, id: numbe
   const body = (await request.json()) as Record<string, unknown>;
   const entry = parseCollectionCardBody(body);
 
-  if (!entry.cardId) {
+  if (normalizeEntrySource(entry.source) === "api" && !entry.cardId) {
     return json({ error: "cardId is required." }, { status: 400, headers: corsHeaders() });
+  }
+
+  if (normalizeEntrySource(entry.source) === "custom" && !entry.label) {
+    return json({ error: "label is required for custom collection entries." }, { status: 400, headers: corsHeaders() });
   }
 
   await claimCollectionCardsForOwner(env.PRICING_DB, session.username);
@@ -308,7 +377,9 @@ async function handleCollectionCardsUpdate(request: Request, env: Env, id: numbe
     );
   }
 
-  await refreshTrackedPokemonCollection(env, [entry]);
+  if (isTrackedPokemonEntry(entry)) {
+    await refreshTrackedPokemonCollection(env, [entry]);
+  }
   return json({ ok: true }, { headers: corsHeaders() });
 }
 
