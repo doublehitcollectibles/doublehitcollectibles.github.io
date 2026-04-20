@@ -128,6 +128,10 @@
       return subtitle;
     }
 
+    if (card?.kind === "custom" || card?.source === "custom" || card?.game || card?.category) {
+      return buildCustomCollectibleSubtitle(card) || "Tracked collection item";
+    }
+
     const fallbackSubtitle = [
       normalizeDisplayText(card?.setName),
       normalizeDisplayText(card?.rarity),
@@ -137,6 +141,19 @@
       .join(" | ");
 
     return fallbackSubtitle || "Tracked collection item";
+  }
+
+  function buildCustomCollectibleSubtitle(entry) {
+    const clean = (value) => String(value ?? "").trim();
+
+    return [
+      clean(entry?.game),
+      clean(entry?.category),
+      clean(entry?.series),
+      clean(entry?.variant) || clean(entry?.itemNumber),
+    ]
+      .filter(Boolean)
+      .join(" | ");
   }
 
   function getGridColumnCount(target) {
@@ -401,22 +418,23 @@
   function mapCustomEntry(entry) {
     const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
     const displayLabel = normalizeDisplayText(entry.label);
+    const subtitle = buildCustomCollectibleSubtitle(entry);
 
     return {
       kind: "custom",
       id: entry.id || entry.label || entry.cardId || `custom-${Math.random().toString(36).slice(2)}`,
       title: displayLabel || "Custom Collection Item",
       cardName: displayLabel || "Custom Collection Item",
-      subtitle: [entry.category, entry.series, entry.variant].filter(Boolean).join(" | "),
+      subtitle,
       image: entry.image || "",
       thumbnail: entry.image || "",
-      setName: entry.series || "",
-      rarity: entry.variant || "",
+      setName: entry.game || entry.series || "",
+      rarity: entry.category || entry.variant || "",
       number: entry.itemNumber || "",
       artist: entry.artist || "",
       hp: null,
       types: [],
-      supertype: entry.category || "Collection Item",
+      supertype: entry.category || entry.game || "Collection Item",
       subtypes: [],
       flavorText: entry.description || "",
       legalities: {},

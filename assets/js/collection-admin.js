@@ -17,12 +17,22 @@
     workspace: app.querySelector("[data-admin-workspace]"),
     sessionCopy: app.querySelector("[data-admin-session-copy]"),
     logoutButton: app.querySelector("[data-admin-logout]"),
+    modeSwitch: app.querySelector("[data-admin-mode-switch]"),
+    modeButtons: Array.from(app.querySelectorAll("[data-admin-mode]")),
+    searchTitle: app.querySelector("[data-admin-search-title]"),
+    searchCopy: app.querySelector("[data-admin-search-copy]"),
     searchForm: app.querySelector("[data-admin-search-form]"),
+    customHelper: app.querySelector("[data-admin-custom-helper]"),
     searchFeedback: app.querySelector("[data-admin-search-feedback]"),
     searchResults: app.querySelector("[data-admin-search-results]"),
     searchPagination: app.querySelector("[data-admin-search-pagination]"),
     selection: app.querySelector("[data-admin-selection]"),
     cardForm: app.querySelector("[data-admin-card-form]"),
+    formCopy: app.querySelector("[data-admin-form-copy]"),
+    labelText: app.querySelector("[data-admin-label-text]"),
+    labelInput: app.querySelector("[data-admin-label-input]"),
+    pokemonOnlyFields: Array.from(app.querySelectorAll("[data-admin-pokemon-only]")),
+    customFields: app.querySelector("[data-admin-custom-fields]"),
     submitButton: app.querySelector("[data-admin-submit]"),
     resetButton: app.querySelector("[data-admin-reset]"),
     cardList: app.querySelector("[data-admin-card-list]"),
@@ -37,10 +47,129 @@
     storedCards: [],
     cardLookup: {},
     editingEntryId: null,
+    entryMode: "api",
   };
 
   const SEARCH_RESULTS_PER_PAGE = 6;
   const SEARCH_PAGE_BUTTON_WINDOW = 5;
+
+  function normalizeEntrySource(value) {
+    return String(value || "").trim().toLowerCase() === "custom" ? "custom" : "api";
+  }
+
+  function normalizeOptionalText(value) {
+    const normalized = String(value ?? "").trim();
+    return normalized || undefined;
+  }
+
+  function normalizeOptionalNumber(value) {
+    if (value == null || value === "") {
+      return undefined;
+    }
+
+    const parsed = Number.parseFloat(String(value));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  function buildCustomSubtitle(entry) {
+    return [
+      normalizeOptionalText(entry?.game),
+      normalizeOptionalText(entry?.category),
+      normalizeOptionalText(entry?.series),
+      normalizeOptionalText(entry?.variant) || normalizeOptionalText(entry?.itemNumber),
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  function getEntryDisplayTitle(entry, lookup) {
+    return (
+      normalizeOptionalText(entry?.label) ||
+      normalizeOptionalText(lookup?.cardName) ||
+      normalizeOptionalText(lookup?.title) ||
+      normalizeOptionalText(entry?.cardId) ||
+      "Collection Item"
+    );
+  }
+
+  function getEntryDisplaySubtitle(entry, lookup) {
+    if (normalizeEntrySource(entry?.source) === "custom") {
+      return buildCustomSubtitle(entry) || normalizeOptionalText(entry?.condition) || "Manual collectible";
+    }
+
+    return normalizeOptionalText(lookup?.subtitle) || normalizeOptionalText(entry?.condition) || "Stored collection card";
+  }
+
+  function buildCustomPreviewModel(entry) {
+    const title = normalizeOptionalText(entry?.label) || "Custom collectible";
+    const subtitle = buildCustomSubtitle(entry) || "Set the game, category, series, or variant to describe this item.";
+
+    return {
+      title,
+      subtitle,
+      image: normalizeOptionalText(entry?.image) || "",
+      currentPrice: normalizeOptionalNumber(entry?.currentPrice),
+      currency: normalizeOptionalText(entry?.currency) || "USD",
+      sourceLabel: normalizeOptionalText(entry?.priceSource) || "Manual entry",
+    };
+  }
+
+  function buildCollectionEntryPayload(fields, entryMode) {
+    const source = normalizeEntrySource(entryMode || fields?.source);
+    const basePayload = {
+      source,
+      label: normalizeOptionalText(fields?.label),
+      quantity: Math.max(1, Number.parseInt(String(fields?.quantity || "1"), 10) || 1),
+      purchasePrice: normalizeOptionalNumber(fields?.purchasePrice),
+      purchaseDate: normalizeOptionalText(fields?.purchaseDate),
+      condition: normalizeOptionalText(fields?.condition),
+      notes: normalizeOptionalText(fields?.notes),
+    };
+
+    const cardId = normalizeOptionalText(fields?.cardId);
+
+    if (cardId) {
+      basePayload.cardId = cardId;
+    }
+
+    if (source === "custom") {
+      const customPayload = {
+        ...basePayload,
+        game: normalizeOptionalText(fields?.game),
+        category: normalizeOptionalText(fields?.category),
+        series: normalizeOptionalText(fields?.series),
+        variant: normalizeOptionalText(fields?.variant),
+        itemNumber: normalizeOptionalText(fields?.itemNumber),
+        image: normalizeOptionalText(fields?.image),
+        currentPrice: normalizeOptionalNumber(fields?.currentPrice),
+        priceSource: normalizeOptionalText(fields?.priceSource),
+        description: normalizeOptionalText(fields?.description),
+        artist: normalizeOptionalText(fields?.artist),
+        currency: normalizeOptionalText(fields?.currency) || "USD",
+      };
+
+      Object.keys(customPayload).forEach((key) => {
+        if (customPayload[key] === undefined) {
+          delete customPayload[key];
+        }
+      });
+
+      return customPayload;
+    }
+
+    const apiPayload = {
+      ...basePayload,
+      priceType: normalizeOptionalText(fields?.priceType),
+    };
+
+    Object.keys(apiPayload).forEach((key) => {
+      if (apiPayload[key] === undefined) {
+        delete apiPayload[key];
+      }
+    });
+
+    return apiPayload;
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -201,28 +330,66 @@
   }
 
   function updateSubmitLabel() {
-    elements.submitButton.textContent = state.editingEntryId ? "Save Changes" : "Add Card";
+    if (state.editingEntryId) {
+      elements.submitButton.textContent = state.entryMode === "custom" ? "Save Item" : "Save Changes";
+      return;
+    }
+
+    elements.submitButton.textContent = state.entryMode === "custom" ? "Add Item" : "Add Card";
   }
 
-  function resetForm(clearSelection) {
-    elements.cardForm.reset();
-    elements.cardForm.elements.entryId.value = "";
-    elements.cardForm.elements.cardId.value = "";
-    elements.cardForm.elements.quantity.value = "1";
-    state.editingEntryId = null;
-    updateSubmitLabel();
+  function getSelectionPrompt() {
+    return state.entryMode === "custom"
+      ? "Manual collectible mode is active. Fill in the item details to preview sealed product or other games."
+      : "Choose a card from the search results to begin.";
+  }
 
-    if (clearSelection) {
-      state.selectedCard = null;
-      elements.selection.innerHTML = "Choose a card from the search results to begin.";
-    }
+  function getCustomFieldValues() {
+    return {
+      label: elements.cardForm.elements.label.value,
+      game: elements.cardForm.elements.game?.value,
+      category: elements.cardForm.elements.category?.value,
+      series: elements.cardForm.elements.series?.value,
+      variant: elements.cardForm.elements.variant?.value,
+      itemNumber: elements.cardForm.elements.itemNumber?.value,
+      image: elements.cardForm.elements.image?.value,
+      currentPrice: elements.cardForm.elements.currentPrice?.value,
+      priceSource: elements.cardForm.elements.priceSource?.value,
+      currency: elements.cardForm.elements.currency?.value,
+    };
   }
 
   function renderSelection() {
+    if (state.entryMode === "custom") {
+      const preview = buildCustomPreviewModel(getCustomFieldValues());
+
+      if (
+        preview.title === "Custom collectible" &&
+        preview.subtitle === "Set the game, category, series, or variant to describe this item."
+      ) {
+        elements.selection.innerHTML = getSelectionPrompt();
+        return;
+      }
+
+      elements.selection.innerHTML = `
+        <article class="collection-admin-selection-card">
+          ${preview.image ? `<img src="${escapeHtml(preview.image)}" alt="${escapeHtml(preview.title)}" loading="lazy">` : ""}
+          <div>
+            <p class="collection-eyebrow">Manual Collectible</p>
+            <h3>${escapeHtml(preview.title)}</h3>
+            <p class="collection-card-copy">${escapeHtml(preview.subtitle)}</p>
+            <p class="collection-admin-selection-price">${formatCurrency(preview.currentPrice, preview.currency)}</p>
+            <p class="collection-card-copy">${escapeHtml(preview.sourceLabel)}</p>
+          </div>
+        </article>
+      `;
+      return;
+    }
+
     const card = state.selectedCard;
 
     if (!card) {
-      elements.selection.innerHTML = "Choose a card from the search results to begin.";
+      elements.selection.innerHTML = getSelectionPrompt();
       return;
     }
 
@@ -239,9 +406,97 @@
     `;
   }
 
+  function setEntryMode(mode, options) {
+    const nextMode = normalizeEntrySource(mode);
+    const preserveValues = Boolean(options?.preserveValues);
+    state.entryMode = nextMode;
+    elements.cardForm.elements.source.value = nextMode;
+
+    elements.modeButtons.forEach((button) => {
+      const isActive = button.getAttribute("data-admin-mode") === nextMode;
+      button.classList.toggle("collection-admin-mode-button--active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    if (elements.searchTitle) {
+      elements.searchTitle.textContent = nextMode === "custom" ? "Manual Collectible Entry" : "Search Pokemon Cards";
+    }
+
+    if (elements.searchCopy) {
+      elements.searchCopy.textContent =
+        nextMode === "custom"
+          ? "Manual mode lets you add sealed product, Riftbound, and other collectibles without a Pokemon API lookup."
+          : "Find a Pokemon card, then attach ownership details before saving it to your collection.";
+    }
+
+    if (elements.formCopy) {
+      elements.formCopy.textContent =
+        nextMode === "custom"
+          ? "Add the item name, game, product/category details, market price, and ownership information you want to track."
+          : "Select a card and save the quantity, cost basis, condition, and notes you want to track.";
+    }
+
+    if (elements.labelText) {
+      elements.labelText.textContent = nextMode === "custom" ? "Item Name" : "Display Label";
+    }
+
+    if (elements.labelInput) {
+      elements.labelInput.placeholder =
+        nextMode === "custom" ? "Required item name, like Riftbound Booster Box" : "Optional custom display name";
+    }
+
+    const customMode = nextMode === "custom";
+    elements.searchForm.hidden = customMode;
+    elements.customHelper.hidden = !customMode;
+    elements.searchFeedback.hidden = customMode;
+    elements.searchResults.hidden = customMode;
+    elements.searchPagination.hidden = customMode || !state.searchResults.length;
+    elements.pokemonOnlyFields.forEach((field) => {
+      field.hidden = customMode;
+    });
+
+    if (elements.customFields) {
+      elements.customFields.hidden = !customMode;
+    }
+
+    if (customMode && !state.editingEntryId && !state.selectedCard) {
+      elements.cardForm.elements.cardId.value = "";
+      elements.cardForm.elements.priceType.value = "";
+    }
+
+    if (!customMode && !preserveValues) {
+      elements.searchFeedback.textContent = "Search for a card to start building your collection.";
+    }
+
+    updateSubmitLabel();
+    renderSelection();
+  }
+
+  function resetForm(clearSelection) {
+    elements.cardForm.reset();
+    elements.cardForm.elements.source.value = state.entryMode;
+    elements.cardForm.elements.entryId.value = "";
+    elements.cardForm.elements.cardId.value = "";
+    elements.cardForm.elements.quantity.value = "1";
+    if (elements.cardForm.elements.currency) {
+      elements.cardForm.elements.currency.value = "USD";
+    }
+    state.editingEntryId = null;
+
+    if (clearSelection) {
+      state.selectedCard = null;
+    }
+
+    updateSubmitLabel();
+    renderSelection();
+  }
+
   function populateFormFromEntry(entry) {
+    const source = normalizeEntrySource(entry.source);
+    setEntryMode(source, { preserveValues: true });
+    elements.cardForm.elements.source.value = source;
     elements.cardForm.elements.entryId.value = String(entry.id);
-    elements.cardForm.elements.cardId.value = entry.cardId;
+    elements.cardForm.elements.cardId.value = entry.cardId || "";
     elements.cardForm.elements.label.value = entry.label || "";
     elements.cardForm.elements.quantity.value = String(entry.quantity || 1);
     elements.cardForm.elements.purchasePrice.value = entry.purchasePrice ?? "";
@@ -249,12 +504,28 @@
     elements.cardForm.elements.priceType.value = entry.priceType || "";
     elements.cardForm.elements.condition.value = entry.condition || "";
     elements.cardForm.elements.notes.value = entry.notes || "";
+    if (elements.cardForm.elements.game) {
+      elements.cardForm.elements.game.value = entry.game || "";
+      elements.cardForm.elements.category.value = entry.category || "";
+      elements.cardForm.elements.series.value = entry.series || "";
+      elements.cardForm.elements.variant.value = entry.variant || "";
+      elements.cardForm.elements.itemNumber.value = entry.itemNumber || "";
+      elements.cardForm.elements.image.value = entry.image || "";
+      elements.cardForm.elements.currentPrice.value = entry.currentPrice ?? "";
+      elements.cardForm.elements.priceSource.value = entry.priceSource || "";
+      elements.cardForm.elements.description.value = entry.description || "";
+      elements.cardForm.elements.artist.value = entry.artist || "";
+      elements.cardForm.elements.currency.value = entry.currency || "USD";
+    }
     state.editingEntryId = entry.id;
     updateSubmitLabel();
+    renderSelection();
   }
 
   function beginCreateFlow(card) {
+    setEntryMode("api", { preserveValues: true });
     state.selectedCard = card;
+    elements.cardForm.elements.source.value = "api";
     elements.cardForm.elements.entryId.value = "";
     elements.cardForm.elements.cardId.value = card.id;
     elements.cardForm.elements.label.value = "";
@@ -265,6 +536,19 @@
       card.pricing?.priceType && card.pricing.priceType !== "unavailable" ? card.pricing.priceType : "";
     elements.cardForm.elements.condition.value = "";
     elements.cardForm.elements.notes.value = "";
+    if (elements.cardForm.elements.game) {
+      elements.cardForm.elements.game.value = "";
+      elements.cardForm.elements.category.value = "";
+      elements.cardForm.elements.series.value = "";
+      elements.cardForm.elements.variant.value = "";
+      elements.cardForm.elements.itemNumber.value = "";
+      elements.cardForm.elements.image.value = "";
+      elements.cardForm.elements.currentPrice.value = "";
+      elements.cardForm.elements.priceSource.value = "";
+      elements.cardForm.elements.description.value = "";
+      elements.cardForm.elements.artist.value = "";
+      elements.cardForm.elements.currency.value = "USD";
+    }
     state.editingEntryId = null;
     updateSubmitLabel();
     renderSelection();
@@ -404,7 +688,7 @@
     if (!state.storedCards.length) {
       elements.cardList.innerHTML = `
         <div class="collection-empty">
-          No cards are stored yet. Search for a card above and save your first collection entry.
+          No collection items are stored yet. Add a Pokemon card, sealed product, or another TCG collectible above.
         </div>
       `;
       return;
@@ -412,22 +696,32 @@
 
     elements.cardList.innerHTML = state.storedCards
       .map((entry) => {
+        const source = normalizeEntrySource(entry.source);
         const lookup =
-          state.cardLookup[detailKey(entry.cardId, entry.priceType)] || state.cardLookup[detailKey(entry.cardId, "")];
-        const title = entry.label || lookup?.cardName || lookup?.title || entry.cardId;
-        const subtitle = lookup?.subtitle || entry.condition || "Stored collection card";
+          source === "api" && entry.cardId
+            ? state.cardLookup[detailKey(entry.cardId, entry.priceType)] || state.cardLookup[detailKey(entry.cardId, "")]
+            : null;
+        const title = getEntryDisplayTitle(entry, lookup);
+        const subtitle = getEntryDisplaySubtitle(entry, lookup);
+        const thumbnail = normalizeOptionalText(lookup?.thumbnail) || normalizeOptionalText(entry.image);
+        const currentPrice = source === "custom" ? entry.currentPrice : lookup?.pricing?.currentPrice;
+        const currentCurrency = source === "custom" ? entry.currency : lookup?.pricing?.currency;
+        const purchaseCurrency = source === "custom" ? entry.currency || "USD" : "USD";
+        const sourceLabel = source === "custom" ? entry.priceSource || "Manual entry" : entry.priceType || "Auto Detect";
 
         return `
           <article class="collection-admin-entry">
             <div class="collection-admin-entry-copy">
-              ${lookup?.thumbnail ? `<img src="${escapeHtml(lookup.thumbnail)}" alt="${escapeHtml(title)}" loading="lazy">` : ""}
+              ${thumbnail ? `<img src="${escapeHtml(thumbnail)}" alt="${escapeHtml(title)}" loading="lazy">` : ""}
               <div>
                 <h3>${escapeHtml(title)}</h3>
                 <p>${escapeHtml(subtitle)}</p>
                 <div class="collection-admin-entry-meta">
+                  <span>${escapeHtml(source === "custom" ? "Manual" : "Pokemon API")}</span>
                   <span>Qty ${escapeHtml(String(entry.quantity || 1))}</span>
-                  <span>Cost ${formatCurrency(entry.purchasePrice, "USD")}</span>
-                  <span>${escapeHtml(entry.priceType || "Auto Detect")}</span>
+                  <span>Cost ${formatCurrency(entry.purchasePrice, purchaseCurrency)}</span>
+                  <span>Market ${formatCurrency(currentPrice, currentCurrency || "USD")}</span>
+                  <span>${escapeHtml(sourceLabel)}</span>
                 </div>
               </div>
             </div>
@@ -472,6 +766,10 @@
     const seen = new Set();
 
     entries.forEach((entry) => {
+      if (normalizeEntrySource(entry.source) !== "api" || !entry.cardId) {
+        return;
+      }
+
       const key = detailKey(entry.cardId, entry.priceType);
       if (!seen.has(key)) {
         seen.add(key);
@@ -501,6 +799,10 @@
   }
 
   async function searchCards(query) {
+    if (state.entryMode === "custom") {
+      return;
+    }
+
     if (!query.trim()) {
       state.searchResults = [];
       state.searchPage = 1;
@@ -524,6 +826,13 @@
   }
 
   async function editEntry(entry) {
+    if (normalizeEntrySource(entry.source) === "custom") {
+      state.selectedCard = null;
+      populateFormFromEntry(entry);
+      renderStatus(`Editing ${getEntryDisplayTitle(entry)}.`, "worker");
+      return;
+    }
+
     const query = entry.priceType ? `?priceType=${encodeURIComponent(entry.priceType)}` : "";
     const payload = await apiJson(`/api/pokemon/cards/${encodeURIComponent(entry.cardId)}${query}`);
     const card = payload?.card;
@@ -540,7 +849,7 @@
   }
 
   async function removeEntry(entry) {
-    const confirmDelete = window.confirm(`Remove ${entry.label || entry.cardId} from the collection?`);
+    const confirmDelete = window.confirm(`Remove ${getEntryDisplayTitle(entry)} from the collection?`);
 
     if (!confirmDelete) {
       return;
@@ -563,25 +872,17 @@
     event.preventDefault();
 
     const formData = new FormData(elements.cardForm);
-    const cardId = String(formData.get("cardId") || "").trim();
+    const payload = buildCollectionEntryPayload(Object.fromEntries(formData.entries()), state.entryMode);
 
-    if (!cardId) {
+    if (payload.source === "api" && !payload.cardId) {
       renderStatus("Choose a card before saving it to the collection.", "error");
       return;
     }
 
-    const payload = {
-      cardId,
-      label: String(formData.get("label") || "").trim() || undefined,
-      quantity: Number.parseInt(String(formData.get("quantity") || "1"), 10) || 1,
-      purchasePrice: String(formData.get("purchasePrice") || "").trim() === ""
-        ? undefined
-        : Number.parseFloat(String(formData.get("purchasePrice"))),
-      purchaseDate: String(formData.get("purchaseDate") || "").trim() || undefined,
-      priceType: String(formData.get("priceType") || "").trim() || undefined,
-      condition: String(formData.get("condition") || "").trim() || undefined,
-      notes: String(formData.get("notes") || "").trim() || undefined,
-    };
+    if (payload.source === "custom" && !payload.label) {
+      renderStatus("Add an item name before saving a manual collectible.", "error");
+      return;
+    }
 
     const entryId = String(formData.get("entryId") || "").trim();
     const path = entryId ? `/api/admin/collection/cards/${encodeURIComponent(entryId)}` : "/api/admin/collection/cards";
@@ -595,7 +896,11 @@
 
     await loadStoredCards();
     renderStatus(
-      entryId ? "Collection card updated in Cloudflare." : "Card added to your Cloudflare-backed collection.",
+      entryId
+        ? "Collection item updated in Cloudflare."
+        : payload.source === "custom"
+          ? "Custom collectible added to your Cloudflare-backed collection."
+          : "Card added to your Cloudflare-backed collection.",
       "worker",
     );
     resetForm(true);
@@ -694,6 +999,7 @@
     elements.searchResults.innerHTML = "";
     elements.cardList.innerHTML = "";
     elements.searchFeedback.textContent = "Search for a card to start building your collection.";
+    setEntryMode("api", { preserveValues: true });
     resetForm(true);
     renderLoginFeedback("You have been signed out.", "info");
     setAuthenticated(false);
@@ -719,10 +1025,35 @@
       });
     });
 
+    elements.modeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const mode = button.getAttribute("data-admin-mode") || "api";
+        state.selectedCard = null;
+        setEntryMode(mode, { preserveValues: true });
+
+        if (normalizeEntrySource(mode) === "api") {
+          elements.searchFeedback.textContent = "Search for a card to start building your collection.";
+        }
+
+        renderStatus(
+          normalizeEntrySource(mode) === "custom"
+            ? "Manual collectible mode is ready for sealed product and other TCG entries."
+            : "Pokemon card search mode is ready.",
+          "info",
+        );
+      });
+    });
+
     elements.cardForm.addEventListener("submit", (event) => {
       submitCardForm(event).catch((error) => {
         renderStatus(error instanceof Error ? error.message : "Failed to save card.", "error");
       });
+    });
+
+    elements.cardForm.addEventListener("input", () => {
+      if (state.entryMode === "custom") {
+        renderSelection();
+      }
     });
 
     elements.resetButton.addEventListener("click", () => {
@@ -735,6 +1066,7 @@
     });
   }
 
+  setEntryMode("api", { preserveValues: true });
   bindEvents();
   checkSession().catch((error) => {
     renderLoginFeedback(error instanceof Error ? error.message : "Admin workspace failed to initialize.", "error");

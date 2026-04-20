@@ -123,6 +123,8 @@ export interface OwnedCollectionEntry {
   source?: "api" | "custom";
   cardId?: string;
   label?: string;
+  game?: string;
+  itemNumber?: string;
   quantity?: number;
   purchasePrice?: number;
   purchaseDate?: string;
@@ -133,6 +135,8 @@ export interface OwnedCollectionEntry {
   series?: string;
   variant?: string;
   image?: string;
+  artist?: string;
+  description?: string;
   currency?: string;
   currentPrice?: number;
   priceSource?: string;
@@ -147,11 +151,64 @@ export interface OwnedCollectionFile {
 
 export interface CollectionCardRecord extends OwnedCollectionEntry {
   id: number;
-  cardId: string;
+  cardId?: string;
   ownerUsername?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CustomCollectionSummary {
+  kind: "custom";
+  id: string;
+  title: string;
+  cardName: string;
+  subtitle: string;
+  image: string;
+  thumbnail: string;
+  setName: string;
+  rarity: string;
+  number: string;
+  artist: string;
+  hp: null;
+  types: string[];
+  supertype: string;
+  subtypes: string[];
+  flavorText: string;
+  legalities: Record<string, string>;
+  regulationMark: string;
+  abilities: Array<Record<string, unknown>>;
+  attacks: Array<Record<string, unknown>>;
+  weaknesses: Array<Record<string, unknown>>;
+  resistances: Array<Record<string, unknown>>;
+  retreatCost: string[];
+  evolvesFrom: null;
+  evolvesTo: string[];
+  rules: string[];
+  nationalPokedexNumbers: number[];
+  pricing: {
+    priceType: string;
+    currency: string;
+    currentPrice: number | null;
+    sourceLabel: string;
+    metrics: Record<string, number | null>;
+    updatedAt: string | null;
+  };
+  priceVariants: PokemonPriceVariant[];
+  historySeries: PokemonPriceHistorySeries[];
+  marketSourceUrl: string | null;
+  ownership: OwnedCollectionEntry | null;
+  ownershipMetrics: {
+    quantity: number;
+    purchasePrice: number | null;
+    investedValue: number | null;
+    currentValue: number | null;
+    deltaAmount: number | null;
+    deltaPercent: number | null;
+  };
+  history: PokemonHistoryPoint[];
+}
+
+export type CollectionDisplayCard = PokemonCardSummary | CustomCollectionSummary;
 
 export interface PokemonHistoryPoint {
   capturedAt: string;

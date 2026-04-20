@@ -1,9 +1,12 @@
 import { getPricingConfig } from "../config";
 import { listCollectionCards } from "./collectionCardsDb";
+import { getOwnedCollection } from "./ownedCollection";
 import { getPokemonCardHistory, getLatestPokemonCardSnapshot, writePokemonCardSnapshot } from "./pokemonCollectionDb";
 import { fetchPriceChartingPricing } from "./priceCharting";
 import type {
+  CollectionDisplayCard,
   CollectionCardRecord,
+  CustomCollectionSummary,
   Env,
   OwnedCollectionEntry,
   PokemonCardSummary,
@@ -316,6 +319,85 @@ function buildSnapshotHistorySeries(
   ];
 }
 
+function normalizeDisplayText(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function buildCustomCollectibleSubtitle(entry: OwnedCollectionEntry): string {
+  return [
+    normalizeDisplayText(entry.game),
+    normalizeDisplayText(entry.category),
+    normalizeDisplayText(entry.series),
+    normalizeDisplayText(entry.variant) || normalizeDisplayText(entry.itemNumber),
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrency: string): CustomCollectionSummary {
+  const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
+  const currency = entry.currency || fallbackCurrency || "USD";
+  const title = normalizeDisplayText(entry.label) || "Custom Collection Item";
+  const subtitle = buildCustomCollectibleSubtitle(entry) || "Manual collectible";
+
+  return {
+    kind: "custom",
+    id: entry.cardId || `custom-${entry.id}`,
+    title,
+    cardName: title,
+    subtitle,
+    image: entry.image || "",
+    thumbnail: entry.image || "",
+    setName: entry.game || entry.series || "",
+    rarity: entry.category || entry.variant || "",
+    number: entry.itemNumber || "",
+    artist: entry.artist || "",
+    hp: null,
+    types: [],
+    supertype: entry.category || entry.game || "Collection Item",
+    subtypes: [],
+    flavorText: entry.description || "",
+    legalities: {},
+    regulationMark: "",
+    abilities: [],
+    attacks: [],
+    weaknesses: [],
+    resistances: [],
+    retreatCost: [],
+    evolvesFrom: null,
+    evolvesTo: [],
+    rules: [],
+    nationalPokedexNumbers: [],
+    pricing: {
+      priceType: "manual",
+      currency,
+      currentPrice,
+      sourceLabel: entry.priceSource || "Manual Entry",
+      metrics: {},
+      updatedAt: entry.updatedAt || null,
+    },
+    priceVariants:
+      currentPrice != null
+        ? [
+            {
+              key: "raw",
+              label: "Raw",
+              currency,
+              currentPrice,
+              sourceLabel: entry.priceSource || "Manual Entry",
+              updatedAt: entry.updatedAt || null,
+              metrics: {},
+            },
+          ]
+        : [],
+    historySeries: [],
+    marketSourceUrl: null,
+    ownership: entry,
+    ownershipMetrics: computeOwnershipMetrics(currentPrice, entry),
+    history: [],
+  };
+}
+
 function normalizeStoredPricePayload(payload: string | null): StoredPricePayload | null {
   if (!payload) {
     return null;
@@ -598,12 +680,16 @@ export async function refreshTrackedPokemonCollection(env: Env, trackedEntries: 
   }
 }
 
-export async function getStoredCollectionCards(env: Env): Promise<PokemonCardSummary[]> {
+export async function getStoredCollectionCards(env: Env): Promise<CollectionDisplayCard[]> {
   const storedCards = await listCollectionCards(env.PRICING_DB);
   const results = await Promise.allSettled(
-    storedCards.map((entry) =>
-      getPokemonCardDetail(env, entry.cardId, entry as CollectionCardRecord, false),
-    ),
+    storedCards.map((entry) => {
+      if (entry.source === "custom") {
+        return Promise.resolve(mapCustomCollectionSummary(entry, getOwnedCollection().currency ?? "USD"));
+      }
+
+      return getPokemonCardDetail(env, entry.cardId || "", entry as CollectionCardRecord, false);
+    }),
   );
 
   return results.flatMap((result) => {
