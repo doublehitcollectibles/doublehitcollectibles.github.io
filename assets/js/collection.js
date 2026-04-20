@@ -1131,7 +1131,13 @@
   }
 
   async function fetchJson(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "cache-control": "no-cache",
+        pragma: "no-cache",
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`Request failed (${response.status})`);
