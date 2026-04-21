@@ -911,20 +911,20 @@ export async function searchCollectibleCards(env: Env, input: string): Promise<C
       console.error("Pokemon collectible search failed.", error);
       return [];
     }),
-    searchPriceChartingProducts(env, input, 6).catch((error) => {
+    searchPriceChartingProducts(env, input, 24).catch((error) => {
       console.error("PriceCharting collectible search failed.", error);
       return [];
     }),
   ]);
 
   return [
-    ...pokemonCards.slice(0, 8),
     ...priceChartingResults.map((result) => mapPriceChartingSearchResultToCustomSummary(result)),
+    ...pokemonCards.slice(0, 12),
   ];
 }
 
 export async function searchPriceChartingCollectibles(env: Env, input: string): Promise<CustomCollectionSummary[]> {
-  const priceChartingResults = await searchPriceChartingProducts(env, input, 12);
+  const priceChartingResults = await searchPriceChartingProducts(env, input, 24);
   return priceChartingResults.map((result) => mapPriceChartingSearchResultToCustomSummary(result));
 }
 
