@@ -242,7 +242,7 @@ test("refreshOwnedCardsInBackground refreshes tracked cards sequentially and upd
   assert.equal(state.selectedCard.refreshed, true);
   assert.equal(detailRenders.length, 1);
   assert.ok(summarySnapshots.length >= 2);
-  assert.match(statuses[0].message, /Refreshing tracked cards 0\/2/);
+  assert.match(statuses[0].message, /Loading cached tracked cards first, then refreshing 0\/2/);
   assert.match(statuses.at(-1).message, /Refreshed all 2 tracked cards/);
 });
 
@@ -252,4 +252,14 @@ test("loadCollection selects cached data first and then starts the staggered own
 
   assert.match(loadBlock, /await selectCard\(state\.ownedCards\[0\],\s*\{\s*refreshLive:\s*false,\s*forceRefresh:\s*false,\s*\}\);/s);
   assert.match(loadBlock, /refreshOwnedCardsInBackground\(state\.ownedCards\.slice\(\)\)\.catch/);
+});
+
+test("owned and search card clicks both request a live forced refresh", () => {
+  const source = readFile("assets/js/collection.js");
+  const renderGridBlock = extractBetween(source, "function renderCardGrid", "function renderOwnedGrid");
+
+  assert.match(
+    renderGridBlock,
+    /selectCard\(selected,\s*\{\s*inlineTarget:\s*targetKey,\s*refreshLive:\s*true,\s*forceRefresh:\s*true,\s*\}\)/s,
+  );
 });
