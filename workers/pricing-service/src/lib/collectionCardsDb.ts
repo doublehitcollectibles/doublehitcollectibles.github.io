@@ -4,6 +4,71 @@ function normalizeOwnerUsername(ownerUsername: string): string {
   return ownerUsername.trim();
 }
 
+function isMissingColumnError(error: unknown): boolean {
+  return /\bno such column\b/i.test(String(error ?? ""));
+}
+
+function buildCollectionCardsSelectQuery(options?: { ownerScoped?: boolean; legacy?: boolean }): string {
+  const ownerScoped = Boolean(options?.ownerScoped);
+  const legacy = Boolean(options?.legacy);
+
+  const selectFields = legacy
+    ? `id,
+       owner_username,
+       card_id,
+       NULL AS source,
+       label,
+       NULL AS game,
+       NULL AS category,
+       NULL AS series,
+       NULL AS variant,
+       NULL AS item_number,
+       NULL AS image,
+       NULL AS artist,
+       NULL AS description,
+       NULL AS currency,
+       NULL AS current_price,
+       NULL AS price_source,
+       quantity,
+       purchase_price,
+       purchase_date,
+       price_type,
+       condition,
+       notes,
+       created_at,
+       updated_at`
+    : `id,
+       owner_username,
+       card_id,
+       source,
+       label,
+       game,
+       category,
+       series,
+       variant,
+       item_number,
+       image,
+       artist,
+       description,
+       currency,
+       current_price,
+       price_source,
+       quantity,
+       purchase_price,
+       purchase_date,
+       price_type,
+       condition,
+       notes,
+       created_at,
+       updated_at`;
+
+  return `SELECT
+            ${selectFields}
+          FROM collection_cards
+          ${ownerScoped ? "WHERE owner_username = ?1" : ""}
+          ORDER BY updated_at DESC, id DESC`;
+}
+
 async function mapCollectionCards(
   statement: D1PreparedStatement,
 ): Promise<CollectionCardRecord[]> {
@@ -76,37 +141,15 @@ export async function claimCollectionCardsForOwner(db: D1Database, ownerUsername
 }
 
 export async function listCollectionCards(db: D1Database): Promise<CollectionCardRecord[]> {
-  return mapCollectionCards(
-    db.prepare(
-      `SELECT
-         id,
-         owner_username,
-         card_id,
-         source,
-         label,
-         game,
-         category,
-         series,
-         variant,
-         item_number,
-         image,
-         artist,
-         description,
-         currency,
-         current_price,
-         price_source,
-         quantity,
-         purchase_price,
-         purchase_date,
-         price_type,
-         condition,
-         notes,
-         created_at,
-         updated_at
-       FROM collection_cards
-       ORDER BY updated_at DESC, id DESC`,
-    ),
-  );
+  try {
+    return await mapCollectionCards(db.prepare(buildCollectionCardsSelectQuery()));
+  } catch (error) {
+    if (!isMissingColumnError(error)) {
+      throw error;
+    }
+
+    return mapCollectionCards(db.prepare(buildCollectionCardsSelectQuery({ legacy: true })));
+  }
 }
 
 export async function listCollectionCardsForOwner(
@@ -115,40 +158,17 @@ export async function listCollectionCardsForOwner(
 ): Promise<CollectionCardRecord[]> {
   const normalizedOwner = normalizeOwnerUsername(ownerUsername);
 
-  return mapCollectionCards(
-    db
-      .prepare(
-        `SELECT
-           id,
-           owner_username,
-           card_id,
-           source,
-           label,
-           game,
-           category,
-           series,
-           variant,
-           item_number,
-           image,
-           artist,
-           description,
-           currency,
-           current_price,
-           price_source,
-           quantity,
-           purchase_price,
-           purchase_date,
-           price_type,
-           condition,
-           notes,
-           created_at,
-           updated_at
-         FROM collection_cards
-         WHERE owner_username = ?1
-         ORDER BY updated_at DESC, id DESC`,
-      )
-      .bind(normalizedOwner),
-  );
+  try {
+    return await mapCollectionCards(db.prepare(buildCollectionCardsSelectQuery({ ownerScoped: true })).bind(normalizedOwner));
+  } catch (error) {
+    if (!isMissingColumnError(error)) {
+      throw error;
+    }
+
+    return mapCollectionCards(
+      db.prepare(buildCollectionCardsSelectQuery({ ownerScoped: true, legacy: true })).bind(normalizedOwner),
+    );
+  }
 }
 
 export async function insertCollectionCard(
