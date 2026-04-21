@@ -1419,6 +1419,13 @@
     state.searchResults = state.searchResults.map(replaceCard);
   }
 
+  function buildDetailRefreshWarning(card, error) {
+    const detailType = isPriceChartingCardRecord(card) ? "collectible" : "card";
+    const detailError = error instanceof Error && error.message ? ` ${error.message}` : "";
+
+    return `Live ${detailType} detail refresh is temporarily unavailable. Showing the cached tracked collection data instead.${detailError}`;
+  }
+
   async function selectCard(card, options = {}) {
     const requestId = ++state.selectionRequestId;
     const inlineTarget = options.inlineTarget || null;
@@ -1434,10 +1441,18 @@
 
     let selectedCard = card;
 
-    if (apiBase && card.kind === "api") {
-      selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
-    } else if (apiBase && isPriceChartingCardRecord(card)) {
-      selectedCard = await fetchWorkerCustomCard(card.id, card.ownership);
+    try {
+      if (apiBase && card.kind === "api") {
+        selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
+      } else if (apiBase && isPriceChartingCardRecord(card)) {
+        selectedCard = await fetchWorkerCustomCard(card.id, card.ownership);
+      }
+    } catch (error) {
+      selectedCard = normalizeCollectionCardRecord(card);
+
+      if (requestId === state.selectionRequestId) {
+        renderStatus(buildDetailRefreshWarning(card, error), "error");
+      }
     }
 
     if (requestId !== state.selectionRequestId) {
@@ -1475,8 +1490,6 @@
     elements.ownedEmpty.hidden = true;
     renderSummary(state.ownedCards);
     renderOwnedGrid();
-    await selectCard(state.ownedCards[0]);
-
     renderStatus(
       warning ||
         (mode === "worker"
@@ -1484,6 +1497,7 @@
           : "Direct Pokemon TCG API fallback mode active. Configure the worker URL to unlock server-side history and website-managed cards."),
       warning ? "error" : mode === "worker" ? "worker" : "fallback",
     );
+    await selectCard(state.ownedCards[0]);
   }
 
   async function searchCards(query) {
