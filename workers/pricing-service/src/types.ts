@@ -129,6 +129,7 @@ export interface OwnedCollectionEntry {
   purchasePrice?: number;
   purchaseDate?: string;
   priceType?: string;
+  ownershipPriceVariant?: string;
   condition?: string;
   notes?: string;
   category?: string;
@@ -210,6 +211,9 @@ export interface CustomCollectionSummary {
     currentValue: number | null;
     deltaAmount: number | null;
     deltaPercent: number | null;
+    comparisonPriceType: string;
+    comparisonPriceLabel: string;
+    comparisonSourceLabel: string | null;
   };
   history: PokemonHistoryPoint[];
 }
@@ -295,6 +299,9 @@ export interface PokemonCardSummary {
     currentValue: number | null;
     deltaAmount: number | null;
     deltaPercent: number | null;
+    comparisonPriceType: string;
+    comparisonPriceLabel: string;
+    comparisonSourceLabel: string | null;
   };
   history: PokemonHistoryPoint[];
 }

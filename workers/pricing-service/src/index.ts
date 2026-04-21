@@ -59,6 +59,16 @@ function normalizeOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function normalizeOwnershipPriceVariant(value: unknown): string | undefined {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized === "psa10" ? "psa10" : "raw";
+}
+
 function slugifyCollectionValue(value: string): string {
   return value
     .toLowerCase()
@@ -276,6 +286,7 @@ function parseCollectionCardBody(body: Record<string, unknown>): OwnedCollection
     quantity: body.quantity != null ? Number(body.quantity) : 1,
     purchasePrice: normalizeOptionalNumber(body.purchasePrice),
     purchaseDate: normalizeOptionalText(body.purchaseDate),
+    ownershipPriceVariant: normalizeOwnershipPriceVariant(body.ownershipPriceVariant),
     condition: normalizeOptionalText(body.condition),
     notes: normalizeOptionalText(body.notes),
   };
@@ -445,8 +456,13 @@ async function handlePriceChartingSearch(request: Request, env: Env): Promise<Re
 async function handlePokemonCardDetail(request: Request, env: Env, cardId: string): Promise<Response> {
   const url = new URL(request.url);
   const priceType = url.searchParams.get("priceType") ?? undefined;
+  const ownershipPriceVariant = normalizeOwnershipPriceVariant(url.searchParams.get("ownershipPriceVariant"));
   const forceRefresh = url.searchParams.get("refresh") === "1";
-  const ownership = priceType ? { cardId, priceType } : { cardId };
+  const ownership = {
+    cardId,
+    ...(priceType ? { priceType } : {}),
+    ...(ownershipPriceVariant ? { ownershipPriceVariant } : {}),
+  };
   const card = await getPokemonCardDetail(env, cardId, ownership, forceRefresh);
   return json({ card }, { headers: corsHeaders() });
 }

@@ -143,9 +143,51 @@ function buildPokemonSearchQuery(input: string): string {
   return `name:"${normalized}"`;
 }
 
-function computeOwnershipMetrics(currentPrice: number | null, ownership: OwnedCollectionEntry | null) {
+function normalizeOwnershipPriceVariant(value: string | undefined): "raw" | "psa10" {
+  const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+  return normalized === "psa10" ? "psa10" : "raw";
+}
+
+function formatOwnershipPriceVariantLabel(value: string | undefined): string {
+  return normalizeOwnershipPriceVariant(value) === "psa10" ? "PSA 10" : "Raw";
+}
+
+function resolveOwnershipComparisonVariant(
+  pricing: PokemonCardSummary["pricing"] | CustomCollectionSummary["pricing"],
+  priceVariants: PokemonPriceVariant[],
+  ownership: OwnedCollectionEntry | null,
+) {
+  const preferredVariant = normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant);
+  const preferredMatch = preferredVariant === "psa10"
+    ? priceVariants.find((variant) => variant.key === "psa10" && variant.currentPrice != null)
+    : null;
+  const rawMatch = priceVariants.find((variant) => variant.key === "raw" && variant.currentPrice != null) || null;
+  const fallbackVariant = preferredMatch || rawMatch;
+
+  if (fallbackVariant) {
+    return fallbackVariant;
+  }
+
+  return {
+    key: preferredVariant,
+    label: formatOwnershipPriceVariantLabel(preferredVariant),
+    currency: pricing.currency,
+    currentPrice: pricing.currentPrice,
+    sourceLabel: pricing.sourceLabel,
+    updatedAt: pricing.updatedAt,
+    metrics: pricing.metrics,
+  } satisfies PokemonPriceVariant;
+}
+
+function computeOwnershipMetrics(
+  pricing: PokemonCardSummary["pricing"] | CustomCollectionSummary["pricing"],
+  priceVariants: PokemonPriceVariant[],
+  ownership: OwnedCollectionEntry | null,
+) {
   const quantity = Number(ownership?.quantity || 1);
   const purchasePrice = ownership?.purchasePrice != null ? Number(ownership.purchasePrice) : null;
+  const comparisonVariant = resolveOwnershipComparisonVariant(pricing, priceVariants, ownership);
+  const currentPrice = comparisonVariant?.currentPrice != null ? Number(comparisonVariant.currentPrice) : null;
 
   if (purchasePrice == null || currentPrice == null) {
     return {
@@ -155,6 +197,9 @@ function computeOwnershipMetrics(currentPrice: number | null, ownership: OwnedCo
       currentValue: currentPrice != null ? currentPrice * quantity : null,
       deltaAmount: null,
       deltaPercent: null,
+      comparisonPriceType: comparisonVariant?.key || normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant),
+      comparisonPriceLabel: comparisonVariant?.label || formatOwnershipPriceVariantLabel(ownership?.ownershipPriceVariant),
+      comparisonSourceLabel: comparisonVariant?.sourceLabel || null,
     };
   }
 
@@ -170,6 +215,9 @@ function computeOwnershipMetrics(currentPrice: number | null, ownership: OwnedCo
     currentValue,
     deltaAmount,
     deltaPercent,
+    comparisonPriceType: comparisonVariant?.key || normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant),
+    comparisonPriceLabel: comparisonVariant?.label || formatOwnershipPriceVariantLabel(ownership?.ownershipPriceVariant),
+    comparisonSourceLabel: comparisonVariant?.sourceLabel || null,
   };
 }
 
@@ -483,7 +531,7 @@ function mapPriceChartingSearchResultToCustomSummary(result: {
     historySeries: [],
     marketSourceUrl: result.sourceUrl,
     ownership: null,
-    ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, null),
+    ownershipMetrics: computeOwnershipMetrics(pricing, priceVariants, null),
     history: [],
   };
 }
@@ -553,7 +601,7 @@ function mapPriceChartingCollectibleToCustomSummary(
     historySeries: detail.historySeries,
     marketSourceUrl: detail.sourceUrl,
     ownership,
-    ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, ownership),
+    ownershipMetrics: computeOwnershipMetrics(pricing, detail.priceVariants, ownership),
     history: buildCustomHistoryFromSeries(detail.priceVariants, detail.historySeries),
   };
 }
@@ -617,7 +665,30 @@ function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrenc
     historySeries: [],
     marketSourceUrl: null,
     ownership: entry,
-    ownershipMetrics: computeOwnershipMetrics(currentPrice, entry),
+    ownershipMetrics: computeOwnershipMetrics(
+      {
+        priceType: entry.ownershipPriceVariant || "manual",
+        currency,
+        currentPrice,
+        sourceLabel: entry.priceSource || "Manual Entry",
+        metrics: {},
+        updatedAt: entry.updatedAt || null,
+      },
+      currentPrice != null
+        ? [
+            {
+              key: "raw",
+              label: "Raw",
+              currency,
+              currentPrice,
+              sourceLabel: entry.priceSource || "Manual Entry",
+              updatedAt: entry.updatedAt || null,
+              metrics: {},
+            },
+          ]
+        : [],
+      entry,
+    ),
     history: [],
   };
 }
@@ -701,7 +772,7 @@ export function mapPokemonCardSummary(
 ): PokemonCardSummary {
   const basePricing = selectPrice(card, ownership?.priceType);
   const { pricing, priceVariants, historySeries, marketSourceUrl } = buildPricingPresentation(basePricing, history, storedPayload);
-  const ownershipMetrics = computeOwnershipMetrics(pricing.currentPrice, ownership);
+  const ownershipMetrics = computeOwnershipMetrics(pricing, priceVariants, ownership);
   const setName = card.set?.name || "Unknown Set";
   const subtitle = [setName, card.rarity, card.number].filter(Boolean).join(" | ");
 

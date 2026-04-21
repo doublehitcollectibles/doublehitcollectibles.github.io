@@ -151,6 +151,13 @@ page_class: collection-page collection-admin-page
                 <input type="date" name="purchaseDate" />
               </label>
               <label class="collection-admin-field" data-admin-pokemon-only>
+                <span>Tracked As</span>
+                <select name="ownershipPriceVariant">
+                  <option value="raw">Raw</option>
+                  <option value="psa10">PSA 10</option>
+                </select>
+              </label>
+              <label class="collection-admin-field" data-admin-pokemon-only>
                 <span>Price Type</span>
                 <select name="priceType">
                   <option value="">Auto Detect</option>

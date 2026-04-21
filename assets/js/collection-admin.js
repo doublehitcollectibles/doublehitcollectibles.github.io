@@ -78,6 +78,15 @@
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  function normalizeOwnershipPriceVariant(value) {
+    const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+    return normalized === "psa10" ? "psa10" : "raw";
+  }
+
+  function formatOwnershipPriceVariantLabel(value) {
+    return normalizeOwnershipPriceVariant(value) === "psa10" ? "PSA 10" : "Raw";
+  }
+
   function buildCustomSubtitle(entry) {
     return [
       normalizeOptionalText(entry?.game),
@@ -121,6 +130,27 @@
     };
   }
 
+  function getLookupComparisonVariant(card, ownershipPriceVariant) {
+    const variants = Array.isArray(card?.priceVariants) ? card.priceVariants : [];
+    const preferredVariant = normalizeOwnershipPriceVariant(ownershipPriceVariant);
+
+    if (preferredVariant === "psa10") {
+      const psa10Variant = variants.find((variant) => variant?.key === "psa10" && variant?.currentPrice != null);
+
+      if (psa10Variant) {
+        return psa10Variant;
+      }
+    }
+
+    return (
+      variants.find((variant) => variant?.key === "raw" && variant?.currentPrice != null) || {
+        currentPrice: card?.pricing?.currentPrice ?? null,
+        currency: card?.pricing?.currency || "USD",
+        sourceLabel: card?.pricing?.sourceLabel || "",
+      }
+    );
+  }
+
   function buildCollectionEntryPayload(fields, entryMode) {
     const source = normalizeEntrySource(entryMode || fields?.source);
     const basePayload = {
@@ -129,6 +159,7 @@
       quantity: Math.max(1, Number.parseInt(String(fields?.quantity || "1"), 10) || 1),
       purchasePrice: normalizeOptionalNumber(fields?.purchasePrice),
       purchaseDate: normalizeOptionalText(fields?.purchaseDate),
+      ownershipPriceVariant: normalizeOwnershipPriceVariant(fields?.ownershipPriceVariant),
       condition: normalizeOptionalText(fields?.condition),
       notes: normalizeOptionalText(fields?.notes),
     };
@@ -485,6 +516,7 @@
     if (customMode && !state.editingEntryId && !state.selectedCard) {
       elements.cardForm.elements.cardId.value = "";
       elements.cardForm.elements.priceType.value = "";
+      elements.cardForm.elements.ownershipPriceVariant.value = "raw";
     }
 
     if (!customMode && !preserveValues) {
@@ -503,6 +535,7 @@
     elements.cardForm.elements.entryId.value = "";
     elements.cardForm.elements.cardId.value = "";
     elements.cardForm.elements.quantity.value = "1";
+    elements.cardForm.elements.ownershipPriceVariant.value = "raw";
     if (elements.cardForm.elements.currency) {
       elements.cardForm.elements.currency.value = "USD";
     }
@@ -527,6 +560,7 @@
     elements.cardForm.elements.purchasePrice.value = entry.purchasePrice ?? "";
     elements.cardForm.elements.purchaseDate.value = entry.purchaseDate || "";
     elements.cardForm.elements.priceType.value = entry.priceType || "";
+    elements.cardForm.elements.ownershipPriceVariant.value = normalizeOwnershipPriceVariant(entry.ownershipPriceVariant);
     elements.cardForm.elements.condition.value = entry.condition || "";
     elements.cardForm.elements.notes.value = entry.notes || "";
     if (elements.cardForm.elements.game) {
@@ -558,6 +592,7 @@
     elements.cardForm.elements.purchasePrice.value = "";
     elements.cardForm.elements.purchaseDate.value = "";
     elements.cardForm.elements.priceType.value = "";
+    elements.cardForm.elements.ownershipPriceVariant.value = "raw";
     elements.cardForm.elements.condition.value = "";
     elements.cardForm.elements.notes.value = "";
     if (elements.cardForm.elements.game) {
@@ -596,6 +631,7 @@
     elements.cardForm.elements.purchaseDate.value = "";
     elements.cardForm.elements.priceType.value =
       card.pricing?.priceType && card.pricing.priceType !== "unavailable" ? card.pricing.priceType : "";
+    elements.cardForm.elements.ownershipPriceVariant.value = "raw";
     elements.cardForm.elements.condition.value = "";
     elements.cardForm.elements.notes.value = "";
     if (elements.cardForm.elements.game) {
@@ -765,13 +801,18 @@
           source === "api" && entry.cardId
             ? state.cardLookup[detailKey(entry.cardId, entry.priceType)] || state.cardLookup[detailKey(entry.cardId, "")]
             : null;
+        const comparisonVariant = source === "api" ? getLookupComparisonVariant(lookup, entry.ownershipPriceVariant) : null;
         const title = getEntryDisplayTitle(entry, lookup);
         const subtitle = getEntryDisplaySubtitle(entry, lookup);
         const thumbnail = normalizeOptionalText(lookup?.thumbnail) || normalizeOptionalText(entry.image);
-        const currentPrice = source === "custom" ? entry.currentPrice : lookup?.pricing?.currentPrice;
-        const currentCurrency = source === "custom" ? entry.currency : lookup?.pricing?.currency;
+        const currentPrice = source === "custom" ? entry.currentPrice : comparisonVariant?.currentPrice;
+        const currentCurrency = source === "custom" ? entry.currency : comparisonVariant?.currency || lookup?.pricing?.currency;
         const purchaseCurrency = source === "custom" ? entry.currency || "USD" : "USD";
-        const sourceLabel = source === "custom" ? entry.priceSource || "Manual entry" : entry.priceType || "Auto Detect";
+        const sourceLabel =
+          source === "custom"
+            ? entry.priceSource || "Manual entry"
+            : comparisonVariant?.sourceLabel || entry.priceType || "Auto Detect";
+        const comparisonLabel = formatOwnershipPriceVariantLabel(entry.ownershipPriceVariant);
         const sourceBadge = source === "custom"
           ? /^pricecharting:/i.test(String(entry.cardId || ""))
             ? "PriceCharting"
@@ -790,6 +831,7 @@
                   <span>Qty ${escapeHtml(String(entry.quantity || 1))}</span>
                   <span>Cost ${formatCurrency(entry.purchasePrice, purchaseCurrency)}</span>
                   <span>Market ${formatCurrency(currentPrice, currentCurrency || "USD")}</span>
+                  <span>Compare ${escapeHtml(comparisonLabel)}</span>
                   <span>${escapeHtml(sourceLabel)}</span>
                 </div>
               </div>
