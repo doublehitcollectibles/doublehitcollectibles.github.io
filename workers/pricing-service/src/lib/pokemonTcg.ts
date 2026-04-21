@@ -77,7 +77,7 @@ interface StoredPricePayload {
   externalPricingChecked?: boolean;
 }
 
-const STORED_PRICE_PAYLOAD_VERSION = 3;
+const STORED_PRICE_PAYLOAD_VERSION = 4;
 
 const CARD_SELECT_FIELDS = [
   "id",

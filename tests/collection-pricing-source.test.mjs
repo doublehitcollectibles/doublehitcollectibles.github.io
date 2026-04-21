@@ -193,11 +193,11 @@ test("stored price payload validation rejects legacy snapshots without a version
   };
   const currentPayload = {
     ...legacyPayload,
-    payloadVersion: 3,
+    payloadVersion: 4,
   };
   const staleVersionPayload = {
     ...legacyPayload,
-    payloadVersion: 2,
+    payloadVersion: 3,
   };
 
   assert.equal(hasCurrentStoredPricePayload(legacyPayload), false);
@@ -243,6 +243,35 @@ test("pricecharting candidate scoring rejects loose cross-card matches like Mewt
   assert.ok(scoreCandidate(card, correctCandidate) > scoreCandidate(card, wrongSameNumberCandidate));
 });
 
+test("pricecharting pricing parser reads explicit daily changes from the price cells", () => {
+  const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
+  const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
+  const buildHelpers = new Function(`${transpile(helperBlock)}; return { extractPriceChangeFromCell, buildDailyChangeMetrics };`);
+  const { extractPriceChangeFromCell, buildDailyChangeMetrics } = buildHelpers();
+
+  const html = `
+    <td id="used_price">
+      <span class="price js-price">$53.12</span>
+      <span class="change" title="dollar change from last update">
+        &#43;<span class="js-price">$2.45</span>
+      </span>
+    </td>
+    <td id="manual_only_price">
+      <span class="price js-price">$564.70</span>
+      <span class="change" title="dollar change from last update">
+        -<span class="js-price">$24.70</span>
+      </span>
+    </td>
+  `;
+
+  assert.equal(extractPriceChangeFromCell(html, "used_price"), 2.45);
+  assert.equal(extractPriceChangeFromCell(html, "manual_only_price"), -24.7);
+  assert.deepEqual(buildDailyChangeMetrics(53.12, 2.45), {
+    dailyChangeAmount: 2.45,
+    dailyChangePercent: (2.45 / (53.12 - 2.45)) * 100,
+  });
+});
+
 test("pricecharting product-page validation rejects direct redirects to the wrong card page", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
@@ -279,7 +308,7 @@ test("pricecharting product-page validation rejects direct redirects to the wron
 test("snapshot writes persist a version marker for future price-payload invalidation", () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonCollectionDb.ts");
 
-  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 3/);
+  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 4/);
   assert.match(source, /payloadVersion:\s*STORED_PRICE_PAYLOAD_VERSION/);
 });
 

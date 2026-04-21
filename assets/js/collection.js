@@ -486,10 +486,24 @@
     return (Array.isArray(card?.historySeries) ? card.historySeries : []).find((series) => series.key === key) || null;
   }
 
-  function getSeriesDelta(series, currentPrice) {
-    if (!series || !Array.isArray(series.points) || series.points.length < 2) {
-      return null;
-    }
+  function getSeriesDelta(series, currentPrice, metrics) {
+      const explicitDeltaAmount = Number(metrics?.dailyChangeAmount);
+      const explicitDeltaPercent = Number(metrics?.dailyChangePercent);
+
+      if (Number.isFinite(explicitDeltaAmount)) {
+        return {
+          delta: explicitDeltaAmount,
+          percent: Number.isFinite(explicitDeltaPercent)
+            ? explicitDeltaPercent
+            : currentPrice - explicitDeltaAmount > 0
+              ? (explicitDeltaAmount / (currentPrice - explicitDeltaAmount)) * 100
+              : null,
+        };
+      }
+
+      if (!series || !Array.isArray(series.points) || series.points.length < 2) {
+        return null;
+      }
 
     const points = series.points
       .map((point) => ({
@@ -697,7 +711,8 @@
         })
         .join(" ");
       const latestPoint = series.points[series.points.length - 1];
-      const deltaMetrics = getSeriesDelta(series, latestPoint.price);
+        const matchingVariant = getPriceVariant(card, series.key);
+        const deltaMetrics = getSeriesDelta(series, latestPoint.price, matchingVariant?.metrics);
 
       return {
         ...series,
@@ -1034,10 +1049,11 @@
           : null);
         const psa10Variant = getPriceVariant(card, "psa10");
         const rawDelta = getSeriesDelta(
-          getHistorySeries(card, "raw") || getHistorySeries(card, "snapshot"),
-          rawVariant?.currentPrice,
-        );
-        const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"), psa10Variant?.currentPrice);
+            getHistorySeries(card, "raw") || getHistorySeries(card, "snapshot"),
+            rawVariant?.currentPrice,
+            rawVariant?.metrics,
+          );
+        const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"), psa10Variant?.currentPrice, psa10Variant?.metrics);
         const badges = [
           card.supertype,
           card.ownership?.condition || null,
