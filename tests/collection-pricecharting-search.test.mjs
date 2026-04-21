@@ -177,13 +177,40 @@ test("pricecharting collectible detail metadata identifies sealed Pokemon produc
   );
 });
 
+test("pricecharting search query expansion keeps sealed searches clean and adds metal variant coverage for numbered cards", () => {
+  const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
+  const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function fetchHtml");
+  const buildHelpers = new Function(
+    `const exports = {}; const PRICECHARTING_BASE_URL = "https://www.pricecharting.com"; ${transpile(helperBlock)}; return { buildExpandedSearchQueries };`,
+  );
+  const { buildExpandedSearchQueries } = buildHelpers();
+
+  const numberedCardQueries = buildExpandedSearchQueries("mew 205");
+  assert.deepEqual(numberedCardQueries.slice(0, 3), [
+    "mew 205",
+    "mew 205 metal",
+    "mew 205 hyper rare",
+  ]);
+  assert.ok(numberedCardQueries.includes("mew 205 full art"));
+  assert.ok(numberedCardQueries.includes("mew 205 ultra rare"));
+  assert.ok(numberedCardQueries.includes("mew 205 illustration rare"));
+  assert.ok(numberedCardQueries.includes("mew 205 special illustration rare"));
+
+  const metalQueries = buildExpandedSearchQueries("mew 205 metal");
+  assert.equal(metalQueries[0], "mew 205 metal");
+  assert.ok(metalQueries.includes("mew 205 metal hyper rare"));
+  assert.ok(metalQueries.includes("mew 205 metal full art"));
+  assert.deepEqual(buildExpandedSearchQueries("booster bundle"), ["booster bundle"]);
+});
+
 test("public explorer and admin workspace both use pricecharting-backed collectible search routes", () => {
   const collectionSource = readFile("assets/js/collection.js");
   const adminSource = readFile("assets/js/collection-admin.js");
   const workerSource = readFile("workers/pricing-service/src/index.ts");
 
   assert.match(collectionSource, /\/api\/collectibles\/search\?q=/);
-  assert.match(adminSource, /\/api\/pricecharting\/search\?q=/);
+  assert.match(adminSource, /\/api\/collectibles\/search\?q=/);
+  assert.doesNotMatch(adminSource, /\/api\/pokemon\/cards\/search\?q=/);
   assert.match(workerSource, /\/api\/collectibles\/search/);
   assert.match(workerSource, /\/api\/pricecharting\/search/);
   assert.match(workerSource, /\/api\/pricecharting\/item/);

@@ -361,6 +361,55 @@ function dedupeQueries(queries: string[]): string[] {
   });
 }
 
+const SEALED_SEARCH_HINTS = [
+  "blister",
+  "booster",
+  "box",
+  "bundle",
+  "collection",
+  "deck",
+  "display",
+  "elite trainer",
+  "etb",
+  "pack",
+  "starter",
+  "tin",
+];
+
+const CARD_VARIANT_SEARCH_HINTS = [
+  "metal",
+  "hyper rare",
+  "special illustration rare",
+  "illustration rare",
+  "ultra rare",
+  "full art",
+];
+
+function buildExpandedSearchQueries(query: string): string[] {
+  const normalizedQuery = normalizeQueryPart(query);
+  const normalizedMatch = normalizeForMatch(query);
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const looksLikeSealedSearch = SEALED_SEARCH_HINTS.some((hint) => normalizedMatch.includes(hint));
+  const hasNumberToken = /\b\d+[a-z]?\b/.test(normalizedMatch);
+  const queries = [normalizedQuery];
+
+  if (looksLikeSealedSearch || !hasNumberToken) {
+    return queries;
+  }
+
+  CARD_VARIANT_SEARCH_HINTS.forEach((hint) => {
+    if (!normalizedMatch.includes(hint)) {
+      queries.push(`${normalizedQuery} ${hint}`);
+    }
+  });
+
+  return dedupeQueries(queries);
+}
+
 function toVariantHints(priceType: string | undefined): string[] {
   const normalized = normalizeForMatch(priceType);
 
@@ -866,29 +915,54 @@ export async function searchPriceChartingProducts(
     return [];
   }
 
-  const searchUrl = new URL(PRICECHARTING_SEARCH_URL);
-  searchUrl.searchParams.set("type", "prices");
-  searchUrl.searchParams.set("q", normalizedQuery);
+  const results: PriceChartingSearchResult[] = [];
+  const seen = new Set<string>();
+  const searchQueries = buildExpandedSearchQueries(normalizedQuery);
 
-  const response = await fetchHtml(env, searchUrl.toString());
+  for (const searchQuery of searchQueries) {
+    if (results.length >= Math.max(1, limit)) {
+      break;
+    }
 
-  if (!response.ok) {
-    return [];
+    const searchUrl = new URL(PRICECHARTING_SEARCH_URL);
+    searchUrl.searchParams.set("type", "prices");
+    searchUrl.searchParams.set("q", searchQuery);
+
+    const response = await fetchHtml(env, searchUrl.toString());
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const html = await response.text();
+    const finalUrl = (response.url || searchUrl.toString()).split("?")[0];
+    const queryResults =
+      finalUrl.includes("/game/") || isProductPageHtml(html)
+        ? (() => {
+            const directResult = buildSearchResultFromProductPage({
+              sourceUrl: finalUrl,
+              html,
+            });
+
+            return directResult ? [directResult] : [];
+          })()
+        : parseSearchResultRows(html);
+
+    for (const result of queryResults) {
+      if (!result?.id || seen.has(result.id)) {
+        continue;
+      }
+
+      seen.add(result.id);
+      results.push(result);
+
+      if (results.length >= Math.max(1, limit)) {
+        break;
+      }
+    }
   }
 
-  const html = await response.text();
-  const finalUrl = (response.url || searchUrl.toString()).split("?")[0];
-
-  if (finalUrl.includes("/game/") || isProductPageHtml(html)) {
-    const directResult = buildSearchResultFromProductPage({
-      sourceUrl: finalUrl,
-      html,
-    });
-
-    return directResult ? [directResult] : [];
-  }
-
-  return parseSearchResultRows(html).slice(0, Math.max(1, limit));
+  return results.slice(0, Math.max(1, limit));
 }
 
 export async function fetchPriceChartingCollectible(

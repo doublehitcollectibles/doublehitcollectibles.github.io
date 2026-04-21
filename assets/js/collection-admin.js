@@ -468,14 +468,14 @@
     });
 
     if (elements.searchTitle) {
-      elements.searchTitle.textContent = nextMode === "custom" ? "Search Sealed + Other Games" : "Search Pokemon Cards";
+      elements.searchTitle.textContent = nextMode === "custom" ? "Search Sealed + Other Games" : "Search Cards + Variants";
     }
 
     if (elements.searchCopy) {
       elements.searchCopy.textContent =
         nextMode === "custom"
           ? "Search PriceCharting for sealed product, Riftbound, and other TCG collectibles, then attach your ownership details before saving them."
-          : "Find a Pokemon card, then attach ownership details before saving it to your collection.";
+          : "Search PriceCharting-backed card results, including alternate variants like metal, then attach ownership details before saving to your collection.";
     }
 
     if (elements.formCopy) {
@@ -915,18 +915,18 @@
       state.searchPage = 1;
       elements.searchFeedback.textContent = state.entryMode === "custom"
         ? "Enter a sealed product or other TCG search."
-        : "Enter a card name or card number to search.";
+        : "Enter a card name, number, or variant search.";
       renderSearchResults();
       return;
     }
 
     elements.searchFeedback.textContent = state.entryMode === "custom"
       ? "Searching PriceCharting..."
-      : "Searching Pokemon TCG API...";
+      : "Searching PriceCharting-backed collectible results...";
     const payload = await apiJson(
       state.entryMode === "custom"
         ? `/api/pricecharting/search?q=${encodeURIComponent(query)}`
-        : `/api/pokemon/cards/search?q=${encodeURIComponent(query)}`,
+        : `/api/collectibles/search?q=${encodeURIComponent(query)}`,
     );
     state.searchResults = Array.isArray(payload?.cards) ? payload.cards : [];
     state.searchPage = 1;
@@ -934,7 +934,7 @@
     if (!state.searchResults.length) {
       elements.searchFeedback.textContent = state.entryMode === "custom"
         ? "No PriceCharting collectibles found. Try a set name, product name, or other TCG search."
-        : "No results found. Try a different card name or number.";
+        : "No collectible results found. Try a card number, variant name, or sealed product search.";
       renderSearchResults();
       return;
     }

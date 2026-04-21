@@ -77,8 +77,8 @@ page_class: collection-page collection-admin-page
         <section class="collection-admin-panel">
           <div class="collection-section-heading">
             <div>
-              <h2 data-admin-search-title>Search Pokemon Cards</h2>
-              <p data-admin-search-copy>Find a Pokemon card, then attach ownership details before saving it to your collection.</p>
+          <h2 data-admin-search-title>Search Cards + Variants</h2>
+          <p data-admin-search-copy>Search PriceCharting-backed card results, including alternate variants like metal, then attach ownership details before saving to your collection.</p>
             </div>
           </div>
 
