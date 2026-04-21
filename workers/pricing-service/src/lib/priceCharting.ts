@@ -202,8 +202,6 @@ const IGNORED_TITLE_TOKENS = new Set([
   "card",
   "cards",
   "english",
-  "ex",
-  "gx",
   "holo",
   "holofoil",
   "japanese",
@@ -213,9 +211,6 @@ const IGNORED_TITLE_TOKENS = new Set([
   "reverse",
   "sv",
   "swsh",
-  "v",
-  "vmax",
-  "vstar",
   "xy",
 ]);
 
@@ -249,6 +244,42 @@ function overlapCount(tokens: string[], haystack: string): number {
 
 function tokenizeNormalized(value: string): string[] {
   return value.split(" ").filter(Boolean);
+}
+
+function buildSetAliasTokens(normalizedSet: string): string[] {
+  const aliases = new Set<string>();
+
+  if (!normalizedSet) {
+    return [];
+  }
+
+  if (normalizedSet.includes("black star promo")) {
+    aliases.add("promo");
+    aliases.add("promos");
+    aliases.add("pokemon promo");
+  }
+
+  if (normalizedSet.includes("trainer gallery")) {
+    aliases.add("trainer gallery");
+  }
+
+  if (normalizedSet.includes("galarian gallery")) {
+    aliases.add("galarian gallery");
+  }
+
+  return Array.from(aliases);
+}
+
+function isExactNameNumberMatch(
+  normalizedTitle: string,
+  normalizedName: string,
+  normalizedNumber: string,
+): boolean {
+  if (!normalizedName || !normalizedNumber) {
+    return false;
+  }
+
+  return normalizedTitle === `${normalizedName} ${normalizedNumber}`.trim();
 }
 
 function normalizeCandidateUrl(candidateUrl: string): string {
@@ -296,6 +327,7 @@ function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingS
   const variantHints = toVariantHints(card.preferredPriceType).map((hint) => normalizeForMatch(hint));
   const nameTokens = normalizedName.split(" ").filter(Boolean);
   const setTokens = normalizedSet.split(" ").filter(Boolean);
+  const setAliasTokens = buildSetAliasTokens(normalizedSet);
   let score = 0;
 
   if (normalizedNumber) {
@@ -316,6 +348,10 @@ function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingS
     }
   }
 
+  if (isExactNameNumberMatch(normalizedTitle, normalizedName, normalizedNumber)) {
+    score += 45;
+  }
+
   if (normalizedSet) {
     if (normalizedCandidateContext === normalizedSet || normalizedCandidateContext.includes(normalizedSet)) {
       score += 70;
@@ -323,6 +359,10 @@ function scoreCandidate(card: PriceChartingLookupCard, candidate: PriceChartingS
       score += 54;
     } else {
       score += overlapCount(setTokens, normalizedCandidateContext) * 9;
+    }
+
+    if (setAliasTokens.some((alias) => normalizedCandidateContext.includes(alias))) {
+      score += 36;
     }
   }
 

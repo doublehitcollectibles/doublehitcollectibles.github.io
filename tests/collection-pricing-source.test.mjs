@@ -161,6 +161,46 @@ test("pricing presentation keeps snapshot history when tcgplayer is fresher than
   assert.equal(presentation.historySeries[0]?.points.at(-1)?.price, 41.15);
 });
 
+test("stored price payload validation rejects legacy snapshots without a version marker", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+  const helperBlock = extractBetween(source, "const STORED_PRICE_PAYLOAD_VERSION", "export function mapPokemonCardSummary");
+  const buildHelpers = new Function(`${transpile(helperBlock)}; return { hasCurrentStoredPricePayload };`);
+  const { hasCurrentStoredPricePayload } = buildHelpers();
+
+  const legacyPayload = {
+    externalPricingChecked: true,
+    priceVariants: [
+      {
+        key: "raw",
+        label: "Raw",
+        currency: "USD",
+        currentPrice: 39.5,
+        sourceLabel: "PriceCharting Ungraded",
+        updatedAt: "2026-04-19T00:00:00.000Z",
+        metrics: {},
+      },
+    ],
+    historySeries: [
+      {
+        key: "raw",
+        label: "Raw",
+        currency: "USD",
+        sourceLabel: "PriceCharting Ungraded",
+        color: "#4aa8ff",
+        points: [{ capturedAt: "2026-04-19T00:00:00.000Z", price: 39.5 }],
+      },
+    ],
+  };
+  const currentPayload = {
+    ...legacyPayload,
+    payloadVersion: 1,
+  };
+
+  assert.equal(hasCurrentStoredPricePayload(legacyPayload), false);
+  assert.equal(hasCurrentStoredPricePayload(currentPayload), true);
+  assert.match(source, /hasCurrentStoredPricePayload\(storedPayload\)/);
+});
+
 test("pricecharting candidate scoring rejects loose cross-card matches like Mewtwo and Mew GX for Mewtwo 52", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
@@ -188,7 +228,14 @@ test("pricecharting candidate scoring rejects loose cross-card matches like Mewt
     setName: "Pokemon Japanese Tag All Stars",
   };
 
+  const wrongSameNumberCandidate = {
+    url: "https://www.pricecharting.com/game/pokemon-evolutions/mewtwo-ex-52",
+    title: "Mewtwo EX #52",
+    setName: "Pokemon Evolutions",
+  };
+
   assert.ok(scoreCandidate(card, correctCandidate) > scoreCandidate(card, wrongCandidate));
+  assert.ok(scoreCandidate(card, correctCandidate) > scoreCandidate(card, wrongSameNumberCandidate));
 });
 
 test("pricecharting product-page validation rejects direct redirects to the wrong card page", () => {
@@ -222,4 +269,11 @@ test("pricecharting product-page validation rejects direct redirects to the wron
     false,
   );
   assert.match(source, /productPageMatchesCard\(card, finalUrl, html\)/);
+});
+
+test("snapshot writes persist a version marker for future price-payload invalidation", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonCollectionDb.ts");
+
+  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 1/);
+  assert.match(source, /payloadVersion:\s*STORED_PRICE_PAYLOAD_VERSION/);
 });

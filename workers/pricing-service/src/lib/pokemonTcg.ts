@@ -69,12 +69,15 @@ interface PokemonCard {
 }
 
 interface StoredPricePayload {
+  payloadVersion?: number;
   pricing?: PokemonCardSummary["pricing"];
   priceVariants?: PokemonPriceVariant[];
   historySeries?: PokemonPriceHistorySeries[];
   marketSourceUrl?: string | null;
   externalPricingChecked?: boolean;
 }
+
+const STORED_PRICE_PAYLOAD_VERSION = 1;
 
 const CARD_SELECT_FIELDS = [
   "id",
@@ -468,6 +471,22 @@ function normalizeStoredPricePayload(payload: string | null): StoredPricePayload
   }
 }
 
+function hasCurrentStoredPricePayload(storedPayload: StoredPricePayload | null): boolean {
+  if (!storedPayload || storedPayload.payloadVersion !== STORED_PRICE_PAYLOAD_VERSION) {
+    return false;
+  }
+
+  const hasExternalPricing = Boolean(
+    storedPayload.externalPricingChecked ||
+      (storedPayload.priceVariants && storedPayload.priceVariants.length) ||
+      (storedPayload.historySeries && storedPayload.historySeries.length),
+  );
+  const hasResolvedVariantTimestamps =
+    !storedPayload.priceVariants?.length || storedPayload.priceVariants.every((variant) => Boolean(variant.updatedAt));
+
+  return hasExternalPricing && hasResolvedVariantTimestamps;
+}
+
 function buildPricingPresentation(
   basePricing: PokemonCardSummary["pricing"],
   history: PokemonHistoryPoint[],
@@ -652,20 +671,12 @@ export async function getPokemonCardDetail(
   const latestCapturedAt = latestSnapshot ? Date.parse(latestSnapshot.captured_at) : 0;
   const cacheFreshMs = config.pokemonTcgCacheTtlMinutes * 60_000;
   const storedPayload = normalizeStoredPricePayload(latestSnapshot?.price_payload ?? null);
-  const snapshotHasExternalPricing = Boolean(
-    storedPayload?.externalPricingChecked ||
-      (storedPayload?.priceVariants && storedPayload.priceVariants.length) ||
-      (storedPayload?.historySeries && storedPayload.historySeries.length),
-  );
-  const snapshotHasResolvedVariantTimestamps =
-    !storedPayload?.priceVariants?.length || storedPayload.priceVariants.every((variant) => Boolean(variant.updatedAt));
 
   if (
     !forceRefresh &&
     latestSnapshot &&
     Date.now() - latestCapturedAt < cacheFreshMs &&
-    snapshotHasExternalPricing &&
-    snapshotHasResolvedVariantTimestamps
+    hasCurrentStoredPricePayload(storedPayload)
   ) {
     const rawCard = JSON.parse(latestSnapshot.card_payload) as PokemonCard;
     const history = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 30);
