@@ -938,7 +938,7 @@
       <article class="collection-metric">
         <p class="collection-metric-label">Cost Basis</p>
         <p class="collection-metric-value">${formatCurrency(investedValue, currency)}</p>
-        <p class="collection-metric-subtext">Your logged purchase total</p>
+        <p class="collection-metric-subtext">Double Hit Collectibles purchase total</p>
       </article>
       <article class="collection-metric">
         <p class="collection-metric-label">Estimated Value</p>
@@ -1254,8 +1254,8 @@
         if (selected) {
           selectCard(selected, {
             inlineTarget: targetKey,
-            refreshLive: targetKey !== "owned",
-            forceRefresh: targetKey !== "owned",
+            refreshLive: true,
+            forceRefresh: true,
           }).catch((error) => {
             renderStatus(error instanceof Error ? error.message : "Unable to load card details.", "error");
           });
@@ -1431,18 +1431,18 @@
     const failed = Number(options.failed || 0);
 
     if (total > 0 && completed < total) {
-      return `Worker-backed mode active. Refreshing tracked cards ${completed}/${total} in staggered updates...`;
+      return `Worker-backed mode active. Loading cached tracked cards first, then refreshing ${completed}/${total} in staggered updates to stay within Cloudflare limits...`;
     }
 
     if (total > 0 && failed > 0) {
-      return `Worker-backed mode active. Refreshed ${completed}/${total} tracked cards. ${failed} card${failed === 1 ? "" : "s"} kept cached data.`;
+      return `Worker-backed mode active. Refreshed ${completed}/${total} tracked cards with staggered updates. ${failed} card${failed === 1 ? "" : "s"} kept cached data, and you can click any card to force a fresh update for that specific item.`;
     }
 
     if (total > 0) {
-      return `Worker-backed mode active. Refreshed all ${total} tracked cards with staggered updates.`;
+      return `Worker-backed mode active. Refreshed all ${total} tracked cards with staggered updates. Click any card to force a fresh update for that specific item.`;
     }
 
-    return "Worker-backed mode active. Pokemon TCG market pricing is primary, with PriceCharting filling PSA 10 and missing market gaps.";
+    return "Worker-backed mode active. Double Hit Collectibles loads cached tracked cards first, then applies staggered live refreshes across the collection while still allowing click-to-refresh updates for individual cards.";
   }
 
   function buildDetailRefreshWarning(card, error) {
