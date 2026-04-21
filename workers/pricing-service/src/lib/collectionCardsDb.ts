@@ -29,6 +29,9 @@ function buildCollectionCardsSelectQuery(options?: { ownerScoped?: boolean; lega
        NULL AS currency,
        NULL AS current_price,
        NULL AS price_source,
+       NULL AS price_payload,
+       NULL AS market_source_url,
+       NULL AS price_refreshed_at,
        quantity,
        purchase_price,
        purchase_date,
@@ -54,6 +57,9 @@ function buildCollectionCardsSelectQuery(options?: { ownerScoped?: boolean; lega
        currency,
        current_price,
        price_source,
+       price_payload,
+       market_source_url,
+       price_refreshed_at,
        quantity,
        purchase_price,
        purchase_date,
@@ -91,6 +97,9 @@ async function mapCollectionCards(
     currency: string | null;
     current_price: number | null;
     price_source: string | null;
+    price_payload: string | null;
+    market_source_url: string | null;
+    price_refreshed_at: string | null;
     quantity: number;
     purchase_price: number | null;
     purchase_date: string | null;
@@ -119,6 +128,9 @@ async function mapCollectionCards(
     currency: row.currency ?? undefined,
     currentPrice: row.current_price ?? undefined,
     priceSource: row.price_source ?? undefined,
+    pricePayload: row.price_payload ?? undefined,
+    marketSourceUrl: row.market_source_url ?? undefined,
+    priceRefreshedAt: row.price_refreshed_at ?? undefined,
     quantity: row.quantity,
     purchasePrice: row.purchase_price ?? undefined,
     purchaseDate: row.purchase_date ?? undefined,
@@ -129,6 +141,41 @@ async function mapCollectionCards(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
+}
+
+export async function updateCollectionCardsPriceSnapshot(
+  db: D1Database,
+  cardId: string,
+  snapshot: {
+    currency?: string | null;
+    currentPrice?: number | null;
+    priceSource?: string | null;
+    pricePayload?: string | null;
+    marketSourceUrl?: string | null;
+    priceRefreshedAt?: string | null;
+  },
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE collection_cards
+       SET currency = ?2,
+           current_price = ?3,
+           price_source = ?4,
+           price_payload = ?5,
+           market_source_url = ?6,
+           price_refreshed_at = ?7
+       WHERE source = 'custom' AND card_id = ?1`,
+    )
+    .bind(
+      cardId,
+      snapshot.currency ?? null,
+      snapshot.currentPrice != null ? Number(snapshot.currentPrice) : null,
+      snapshot.priceSource ?? null,
+      snapshot.pricePayload ?? null,
+      snapshot.marketSourceUrl ?? null,
+      snapshot.priceRefreshedAt ?? null,
+    )
+    .run();
 }
 
 export async function claimCollectionCardsForOwner(db: D1Database, ownerUsername: string): Promise<void> {

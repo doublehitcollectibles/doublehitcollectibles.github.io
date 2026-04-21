@@ -1,5 +1,5 @@
 import { getPricingConfig } from "../config";
-import { listCollectionCards } from "./collectionCardsDb";
+import { listCollectionCards, updateCollectionCardsPriceSnapshot } from "./collectionCardsDb";
 import { getOwnedCollection } from "./ownedCollection";
 import { getPokemonCardHistory, getLatestPokemonCardSnapshot, writePokemonCardSnapshot } from "./pokemonCollectionDb";
 import {
@@ -7,6 +7,7 @@ import {
   fetchPriceChartingPricing,
   isPriceChartingCollectionId,
   searchPriceChartingProducts,
+  type PriceChartingCollectibleDetail,
 } from "./priceCharting";
 import type {
   CollectionDisplayCard,
@@ -83,6 +84,7 @@ interface StoredPricePayload {
 }
 
 const STORED_PRICE_PAYLOAD_VERSION = 4;
+const TRACKED_COLLECTION_REFRESH_BATCH_SIZE = 12;
 
 const CARD_SELECT_FIELDS = [
   "id",
@@ -621,10 +623,31 @@ function mapPriceChartingCollectibleToCustomSummary(
 }
 
 function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrency: string): CustomCollectionSummary {
+  const storedPayload = normalizeStoredPricePayload(entry.pricePayload ?? null);
+  const storedVariants = Array.isArray(storedPayload?.priceVariants) ? storedPayload.priceVariants : [];
   const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
-  const currency = entry.currency || fallbackCurrency || "USD";
+  const currency = entry.currency || storedVariants[0]?.currency || fallbackCurrency || "USD";
   const title = buildOwnershipDisplayTitle(normalizeDisplayText(entry.label) || "Custom Collection Item", entry);
   const subtitle = buildCustomCollectibleSubtitle(entry) || "Manual collectible";
+  const priceVariants =
+    storedVariants.length
+      ? storedVariants
+      : currentPrice != null
+        ? [
+            {
+              key: "raw",
+              label: "Raw",
+              currency,
+              currentPrice,
+              sourceLabel: entry.priceSource || "Manual Entry",
+              updatedAt: entry.priceRefreshedAt || entry.updatedAt || null,
+              metrics: {},
+            },
+          ]
+        : [];
+  const pricing = buildCustomPricing(priceVariants, entry.priceSource || "Manual Entry", currency);
+  const historySeries = Array.isArray(storedPayload?.historySeries) ? storedPayload.historySeries : [];
+  const marketSourceUrl = entry.marketSourceUrl || storedPayload?.marketSourceUrl || null;
 
   return {
     kind: "custom",
@@ -654,56 +677,17 @@ function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrenc
     evolvesTo: [],
     rules: [],
     nationalPokedexNumbers: [],
-    pricing: {
-      priceType: "manual",
-      currency,
-      currentPrice,
-      sourceLabel: entry.priceSource || "Manual Entry",
-      metrics: {},
-      updatedAt: entry.updatedAt || null,
-    },
-    priceVariants:
-      currentPrice != null
-        ? [
-            {
-              key: "raw",
-              label: "Raw",
-              currency,
-              currentPrice,
-              sourceLabel: entry.priceSource || "Manual Entry",
-              updatedAt: entry.updatedAt || null,
-              metrics: {},
-            },
-          ]
-        : [],
-    historySeries: [],
-    marketSourceUrl: null,
+    pricing,
+    priceVariants,
+    historySeries,
+    marketSourceUrl,
     ownership: entry,
     ownershipMetrics: computeOwnershipMetrics(
-      {
-        priceType: entry.ownershipPriceVariant || "manual",
-        currency,
-        currentPrice,
-        sourceLabel: entry.priceSource || "Manual Entry",
-        metrics: {},
-        updatedAt: entry.updatedAt || null,
-      },
-      currentPrice != null
-        ? [
-            {
-              key: "raw",
-              label: "Raw",
-              currency,
-              currentPrice,
-              sourceLabel: entry.priceSource || "Manual Entry",
-              updatedAt: entry.updatedAt || null,
-              metrics: {},
-            },
-          ]
-        : [],
+      pricing,
+      priceVariants,
       entry,
     ),
-    history: [],
+    history: buildCustomHistoryFromSeries(priceVariants, historySeries),
   };
 }
 
@@ -728,20 +712,81 @@ function normalizeStoredPricePayload(payload: string | null): StoredPricePayload
   }
 }
 
+function hasRenderableStoredPricePayload(storedPayload: StoredPricePayload | null): boolean {
+  return Boolean(
+    storedPayload &&
+      storedPayload.payloadVersion === STORED_PRICE_PAYLOAD_VERSION &&
+      (
+        storedPayload.externalPricingChecked ||
+        (storedPayload.priceVariants && storedPayload.priceVariants.length) ||
+        (storedPayload.historySeries && storedPayload.historySeries.length)
+      ),
+  );
+}
+
 function hasCurrentStoredPricePayload(storedPayload: StoredPricePayload | null): boolean {
-  if (!storedPayload || storedPayload.payloadVersion !== STORED_PRICE_PAYLOAD_VERSION) {
+  if (!hasRenderableStoredPricePayload(storedPayload)) {
     return false;
   }
 
-  const hasExternalPricing = Boolean(
-    storedPayload.externalPricingChecked ||
-      (storedPayload.priceVariants && storedPayload.priceVariants.length) ||
-      (storedPayload.historySeries && storedPayload.historySeries.length),
-  );
+  const validatedPayload = storedPayload as StoredPricePayload;
   const hasResolvedVariantTimestamps =
-    !storedPayload.priceVariants?.length || storedPayload.priceVariants.every((variant) => Boolean(variant.updatedAt));
+    !validatedPayload.priceVariants?.length || validatedPayload.priceVariants.every((variant) => Boolean(variant.updatedAt));
 
-  return hasExternalPricing && hasResolvedVariantTimestamps;
+  return hasResolvedVariantTimestamps;
+}
+
+function hasCurrentCustomStoredPricePayload(
+  entry: Pick<OwnedCollectionEntry, "priceRefreshedAt">,
+  storedPayload: StoredPricePayload | null,
+  refreshCutoffMs: number,
+): boolean {
+  if (!hasRenderableStoredPricePayload(storedPayload)) {
+    return false;
+  }
+
+  const refreshedAt = parseUpdatedAt(entry.priceRefreshedAt);
+  return refreshedAt > 0 && Date.now() - refreshedAt < refreshCutoffMs;
+}
+
+function buildCustomStoredPricePayload(detail: PriceChartingCollectibleDetail): StoredPricePayload {
+  const pricing = buildCustomPricing(detail.priceVariants, "PriceCharting", "USD");
+
+  return {
+    payloadVersion: STORED_PRICE_PAYLOAD_VERSION,
+    pricing,
+    priceVariants: detail.priceVariants,
+    historySeries: detail.historySeries,
+    marketSourceUrl: detail.sourceUrl,
+    externalPricingChecked: true,
+  };
+}
+
+async function refreshStoredCustomCollectionCard(
+  env: Env,
+  entry: OwnedCollectionEntry,
+): Promise<void> {
+  if (!entry.cardId || !isPriceChartingCollectionId(entry.cardId)) {
+    return;
+  }
+
+  const detail = await fetchPriceChartingCollectible(env, entry.cardId);
+
+  if (!detail) {
+    return;
+  }
+
+  const payload = buildCustomStoredPricePayload(detail);
+  const rawVariant = detail.priceVariants.find((variant) => variant.key === "raw") || detail.priceVariants[0] || null;
+
+  await updateCollectionCardsPriceSnapshot(env.PRICING_DB, entry.cardId, {
+    currency: rawVariant?.currency || entry.currency || "USD",
+    currentPrice: rawVariant?.currentPrice ?? null,
+    priceSource: rawVariant?.sourceLabel || "PriceCharting",
+    pricePayload: JSON.stringify(payload),
+    marketSourceUrl: detail.sourceUrl,
+    priceRefreshedAt: new Date().toISOString(),
+  });
 }
 
 function buildPricingPresentation(
@@ -959,7 +1004,20 @@ export async function getPokemonCardDetail(
     return mapPokemonCardSummary(rawCard, ownership, history, storedPayload);
   }
 
-  const card = await fetchPokemonCard(env, cardId);
+  let card: PokemonCard;
+
+  try {
+    card = await fetchPokemonCard(env, cardId);
+  } catch (error) {
+    if (!latestSnapshot) {
+      throw error;
+    }
+
+    const rawCard = JSON.parse(latestSnapshot.card_payload) as PokemonCard;
+    const history = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 30);
+    return mapPokemonCardSummary(rawCard, ownership, history, storedPayload);
+  }
+
   const basePricing = selectPrice(card, ownership?.priceType);
   const externalPricing = await fetchPriceChartingPricing(env, {
     name: card.name,
@@ -1014,27 +1072,50 @@ export async function getPriceChartingCollectibleDetail(
 
 export async function refreshTrackedPokemonCollection(env: Env, trackedEntries: OwnedCollectionEntry[]): Promise<void> {
   const uniqueEntries = new Map<string, OwnedCollectionEntry>();
+  const refreshCutoff = getPricingConfig(env).pokemonTcgRefreshHours * 3_600_000;
 
   trackedEntries.forEach((entry) => {
     if (!entry.cardId) {
       return;
     }
 
-    const key = `${entry.cardId}:${entry.priceType || "auto"}`;
+    const key =
+      entry.source === "custom" && isPriceChartingCollectionId(entry.cardId)
+        ? `custom:${entry.cardId}`
+        : `api:${entry.cardId}:${entry.priceType || "auto"}`;
+
     if (!uniqueEntries.has(key)) {
       uniqueEntries.set(key, entry);
     }
   });
 
+  let processed = 0;
+
   for (const entry of uniqueEntries.values()) {
+    if (processed >= TRACKED_COLLECTION_REFRESH_BATCH_SIZE) {
+      break;
+    }
+
+    if (entry.source === "custom" && entry.cardId && isPriceChartingCollectionId(entry.cardId)) {
+      const storedPayload = normalizeStoredPricePayload(entry.pricePayload ?? null);
+
+      if (hasCurrentCustomStoredPricePayload(entry, storedPayload, refreshCutoff)) {
+        continue;
+      }
+
+      await refreshStoredCustomCollectionCard(env, entry);
+      processed += 1;
+      continue;
+    }
+
     const latestSnapshot = await getLatestPokemonCardSnapshot(env.PRICING_DB, entry.cardId || "", entry.priceType);
-    const refreshCutoff = getPricingConfig(env).pokemonTcgRefreshHours * 3_600_000;
 
     if (latestSnapshot && Date.now() - Date.parse(latestSnapshot.captured_at) < refreshCutoff) {
       continue;
     }
 
     await getPokemonCardDetail(env, entry.cardId || "", entry, true);
+    processed += 1;
   }
 }
 
