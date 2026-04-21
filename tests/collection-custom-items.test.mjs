@@ -66,6 +66,7 @@ test("collection admin can build a custom collectible payload for sealed and non
       quantity: 2,
       purchasePrice: 350,
       purchaseDate: "2026-04-20",
+      ownershipPriceVariant: "raw",
       condition: "Sealed",
       notes: "Pokemon Center exclusive ETB.",
       game: "Pokemon",
@@ -78,6 +79,40 @@ test("collection admin can build a custom collectible payload for sealed and non
       priceSource: "Manual Market",
       description: "Factory sealed collector box",
       currency: "USD",
+    },
+  );
+});
+
+test("collection admin can build an api payload that tracks cards as raw or psa10 separately from price type", () => {
+  const adminSource = readFile("assets/js/collection-admin.js");
+  const helperBlock = extractBetween(adminSource, "function normalizeEntrySource", "function escapeHtml");
+  const buildHelpers = new Function(`${helperBlock}; return { buildCollectionEntryPayload };`);
+  const { buildCollectionEntryPayload } = buildHelpers();
+
+  assert.deepEqual(
+    buildCollectionEntryPayload(
+      {
+        cardId: "sm70",
+        quantity: "1",
+        purchasePrice: "350.00",
+        purchaseDate: "2026-04-21",
+        priceType: "holofoil",
+        ownershipPriceVariant: "psa10",
+        condition: "PSA 10",
+        notes: "Bought already graded.",
+      },
+      "api",
+    ),
+    {
+      source: "api",
+      cardId: "sm70",
+      quantity: 1,
+      purchasePrice: 350,
+      purchaseDate: "2026-04-21",
+      priceType: "holofoil",
+      ownershipPriceVariant: "psa10",
+      condition: "PSA 10",
+      notes: "Bought already graded.",
     },
   );
 });
@@ -97,6 +132,8 @@ test("manage collection page exposes a mixed collectibles mode and manual item f
   assert.match(pageSource, /name="image"/);
   assert.match(pageSource, /name="currentPrice"/);
   assert.match(pageSource, /name="priceSource"/);
+  assert.match(pageSource, /name="ownershipPriceVariant"/);
+  assert.match(pageSource, /Tracked As/);
 });
 
 test("custom collection items include game-aware subtitles on the live collection page", () => {

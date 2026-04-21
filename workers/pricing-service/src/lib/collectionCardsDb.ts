@@ -33,6 +33,7 @@ function buildCollectionCardsSelectQuery(options?: { ownerScoped?: boolean; lega
        purchase_price,
        purchase_date,
        price_type,
+       NULL AS ownership_price_variant,
        condition,
        notes,
        created_at,
@@ -57,6 +58,7 @@ function buildCollectionCardsSelectQuery(options?: { ownerScoped?: boolean; lega
        purchase_price,
        purchase_date,
        price_type,
+       ownership_price_variant,
        condition,
        notes,
        created_at,
@@ -93,6 +95,7 @@ async function mapCollectionCards(
     purchase_price: number | null;
     purchase_date: string | null;
     price_type: string | null;
+    ownership_price_variant: string | null;
     condition: string | null;
     notes: string | null;
     created_at: string;
@@ -120,6 +123,7 @@ async function mapCollectionCards(
     purchasePrice: row.purchase_price ?? undefined,
     purchaseDate: row.purchase_date ?? undefined,
     priceType: row.price_type ?? undefined,
+    ownershipPriceVariant: row.ownership_price_variant ?? undefined,
     condition: row.condition ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
@@ -201,11 +205,12 @@ export async function insertCollectionCard(
          purchase_price,
          purchase_date,
          price_type,
+         ownership_price_variant,
          condition,
          notes,
          created_at,
          updated_at
-       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?22)`,
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?23)`,
     )
     .bind(
       normalizedOwner,
@@ -227,6 +232,7 @@ export async function insertCollectionCard(
       entry.purchasePrice != null ? Number(entry.purchasePrice) : null,
       entry.purchaseDate ?? null,
       entry.priceType ?? null,
+      entry.ownershipPriceVariant ?? null,
       entry.condition ?? null,
       entry.notes ?? null,
       now,
@@ -263,9 +269,10 @@ export async function updateCollectionCard(
            purchase_price = ?18,
            purchase_date = ?19,
            price_type = ?20,
-           condition = ?21,
-           notes = ?22,
-           updated_at = ?23
+           ownership_price_variant = ?21,
+           condition = ?22,
+           notes = ?23,
+           updated_at = ?24
        WHERE id = ?1 AND owner_username = ?2`,
     )
     .bind(
@@ -289,6 +296,7 @@ export async function updateCollectionCard(
       entry.purchasePrice != null ? Number(entry.purchasePrice) : null,
       entry.purchaseDate ?? null,
       entry.priceType ?? null,
+      entry.ownershipPriceVariant ?? null,
       entry.condition ?? null,
       entry.notes ?? null,
       now,

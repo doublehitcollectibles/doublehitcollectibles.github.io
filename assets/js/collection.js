@@ -121,6 +121,15 @@
     return String(value).trim();
   }
 
+  function normalizeOwnershipPriceVariant(value) {
+    const normalized = String(value ?? "").trim().toLowerCase().replace(/\s+/g, "");
+    return normalized === "psa10" ? "psa10" : "raw";
+  }
+
+  function formatOwnershipPriceVariantLabel(value) {
+    return normalizeOwnershipPriceVariant(value) === "psa10" ? "PSA 10" : "Raw";
+  }
+
   function buildCollectionSubtitle(card) {
     const subtitle = normalizeDisplayText(card?.subtitle);
 
@@ -330,9 +339,42 @@
     };
   }
 
-  function computeOwnershipMetrics(currentPrice, ownership) {
+  function resolveOwnershipComparisonVariant(card, ownership) {
+    const preferredVariant = normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant);
+    const variants = Array.isArray(card?.priceVariants) ? card.priceVariants : [];
+    const preferredMatch =
+      preferredVariant === "psa10"
+        ? variants.find((variant) => variant?.key === "psa10" && typeof variant?.currentPrice === "number")
+        : null;
+    const rawMatch = variants.find((variant) => variant?.key === "raw" && typeof variant?.currentPrice === "number") || null;
+
+    if (preferredMatch || rawMatch) {
+      return preferredMatch || rawMatch;
+    }
+
+    if (!card?.pricing) {
+      return null;
+    }
+
+    return {
+      key: preferredVariant,
+      label: formatOwnershipPriceVariantLabel(preferredVariant),
+      currency: card.pricing.currency,
+      currentPrice: card.pricing.currentPrice,
+      sourceLabel: card.pricing.sourceLabel,
+      updatedAt: card.pricing.updatedAt,
+      metrics: card.pricing.metrics || {},
+    };
+  }
+
+  function computeOwnershipMetrics(card, ownership) {
     const quantity = Number(ownership?.quantity || 1);
     const purchasePrice = ownership?.purchasePrice != null ? Number(ownership.purchasePrice) : null;
+    const comparisonVariant = resolveOwnershipComparisonVariant(card, ownership);
+    const currentPrice =
+      comparisonVariant?.currentPrice != null && !Number.isNaN(Number(comparisonVariant.currentPrice))
+        ? Number(comparisonVariant.currentPrice)
+        : null;
 
     if (purchasePrice == null || currentPrice == null) {
       return {
@@ -342,6 +384,10 @@
         currentValue: currentPrice != null ? currentPrice * quantity : null,
         deltaAmount: null,
         deltaPercent: null,
+        comparisonPriceType: comparisonVariant?.key || normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant),
+        comparisonPriceLabel:
+          comparisonVariant?.label || formatOwnershipPriceVariantLabel(ownership?.ownershipPriceVariant),
+        comparisonSourceLabel: comparisonVariant?.sourceLabel || null,
       };
     }
 
@@ -357,6 +403,10 @@
       currentValue,
       deltaAmount,
       deltaPercent,
+      comparisonPriceType: comparisonVariant?.key || normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant),
+      comparisonPriceLabel:
+        comparisonVariant?.label || formatOwnershipPriceVariantLabel(ownership?.ownershipPriceVariant),
+      comparisonSourceLabel: comparisonVariant?.sourceLabel || null,
     };
   }
 
@@ -410,7 +460,13 @@
       historySeries: [],
       marketSourceUrl: null,
       ownership: ownership || null,
-      ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, ownership || null),
+      ownershipMetrics: computeOwnershipMetrics(
+        {
+          pricing,
+          priceVariants: rawVariant ? [rawVariant] : [],
+        },
+        ownership || null,
+      ),
       history: Array.isArray(history) ? history : [],
     };
   }
@@ -473,7 +529,33 @@
       historySeries: [],
       marketSourceUrl: null,
       ownership: entry,
-      ownershipMetrics: computeOwnershipMetrics(currentPrice, entry),
+      ownershipMetrics: computeOwnershipMetrics(
+        {
+          pricing: {
+            priceType: entry.priceType || "manual",
+            currency: entry.currency || state.ownedCollection.currency || "USD",
+            currentPrice,
+            sourceLabel: entry.priceSource || "Manual Entry",
+            metrics: {},
+            updatedAt: entry.updatedAt || null,
+          },
+          priceVariants:
+            currentPrice != null
+              ? [
+                  {
+                    key: "raw",
+                    label: "Raw",
+                    currency: entry.currency || state.ownedCollection.currency || "USD",
+                    currentPrice,
+                    sourceLabel: entry.priceSource || "Manual Entry",
+                    updatedAt: entry.updatedAt || null,
+                    metrics: {},
+                  },
+                ]
+              : [],
+        },
+        entry,
+      ),
       history: Array.isArray(entry.history) ? entry.history : [],
     };
   }
@@ -860,6 +942,9 @@
   function renderDetail(card) {
     const displayTitle = getCardDisplayTitle(card);
     const ownership = card.ownershipMetrics || {};
+    const comparisonCopy = ownership.comparisonPriceLabel
+      ? `Compared against ${ownership.comparisonPriceLabel} market`
+      : card.pricing?.sourceLabel || "Unavailable";
     const rawPrice = getPriceVariant(card, "raw");
     const psa10Price = getPriceVariant(card, "psa10");
     const attacks = card.attacks?.length
@@ -916,7 +1001,7 @@
                         : "Add purchase prices to calculate"
                     }
                   </p>
-                  <p class="collection-detail-stat-copy">${escapeHtml(card.pricing?.sourceLabel || "Unavailable")}</p>
+                  <p class="collection-detail-stat-copy">${escapeHtml(comparisonCopy)}</p>
                 </article>
               </div>
             </div>
@@ -963,7 +1048,8 @@
     const badges = [
       card.supertype,
       card.rarity,
-      card.ownership?.condition,
+      card.ownership?.condition ||
+        (normalizeOwnershipPriceVariant(card.ownership?.ownershipPriceVariant) === "psa10" ? "PSA 10" : null),
       ownership.quantity ? `Qty ${ownership.quantity}` : null,
     ].filter(Boolean);
     const historyMarkup = buildHistoryChart(card, rawPrice?.currency || card.pricing?.currency, { compact: true });
@@ -1056,7 +1142,8 @@
         const psa10Delta = getSeriesDelta(getHistorySeries(card, "psa10"), psa10Variant?.currentPrice, psa10Variant?.metrics);
         const badges = [
           card.supertype,
-          card.ownership?.condition || null,
+          card.ownership?.condition ||
+            (normalizeOwnershipPriceVariant(card.ownership?.ownershipPriceVariant) === "psa10" ? "PSA 10" : null),
         ].filter(Boolean);
 
         const movementMarkup = hasMovement
@@ -1165,6 +1252,10 @@
       params.set("priceType", ownership.priceType);
     }
 
+    if (ownership?.ownershipPriceVariant) {
+      params.set("ownershipPriceVariant", ownership.ownershipPriceVariant);
+    }
+
     if (refresh) {
       params.set("refresh", "1");
     }
@@ -1179,7 +1270,7 @@
 
     if (ownership) {
       card.ownership = ownership;
-      card.ownershipMetrics = computeOwnershipMetrics(card.pricing?.currentPrice ?? null, ownership);
+      card.ownershipMetrics = computeOwnershipMetrics(card, ownership);
       card.title = normalizeDisplayText(ownership.label) || getCardDisplayTitle(card);
     }
 
@@ -1206,7 +1297,7 @@
 
     if (ownership) {
       card.ownership = ownership;
-      card.ownershipMetrics = computeOwnershipMetrics(card.pricing?.currentPrice ?? null, ownership);
+      card.ownershipMetrics = computeOwnershipMetrics(card, ownership);
       card.title = normalizeDisplayText(ownership.label) || getCardDisplayTitle(card);
     }
 
