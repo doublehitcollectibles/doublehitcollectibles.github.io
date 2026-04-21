@@ -1,9 +1,14 @@
 .collection-page {
+  --collection-text-primary: #f6f2e8;
+  --collection-text-muted: rgba(246, 242, 232, 0.9);
+  --collection-text-soft: rgba(246, 242, 232, 0.82);
+  --collection-text-faint: rgba(246, 242, 232, 0.74);
+  --collection-text-label: rgba(255, 232, 156, 0.94);
   background:
     radial-gradient(circle at top left, rgba(255, 214, 10, 0.14), transparent 30%),
     radial-gradient(circle at top right, rgba(0, 140, 255, 0.18), transparent 28%),
     linear-gradient(180deg, #09151a 0%, #0d1f26 42%, #111417 100%);
-  color: #f6f2e8;
+  color: var(--collection-text-primary);
 
   .content {
     padding-top: 112px;
@@ -14,6 +19,39 @@
     margin: 0 auto;
     padding: 0 24px 80px;
   }
+}
+
+.collection-page .post-content p {
+  color: var(--collection-text-muted);
+}
+
+.collection-page .post-content .collection-eyebrow,
+.collection-page .post-content .collection-metric-label,
+.collection-page .post-content .collection-detail-stat-label {
+  color: var(--collection-text-label);
+}
+
+.collection-page .post-content .collection-metric-value,
+.collection-page .post-content .collection-detail-stat-value {
+  color: var(--collection-text-primary);
+}
+
+.collection-page .post-content .collection-lead,
+.collection-page .post-content .collection-section-heading p,
+.collection-page .post-content .collection-card-copy,
+.collection-page .post-content .collection-metric-subtext,
+.collection-page .post-content .collection-detail-copy,
+.collection-page .post-content .collection-detail-stat-copy,
+.collection-page .post-content .collection-empty,
+.collection-page .post-content .collection-admin-helper p,
+.collection-page .post-content .collection-admin-entry-copy p {
+  color: var(--collection-text-soft);
+}
+
+.collection-page .post-content .collection-search-feedback,
+.collection-page .post-content .collection-admin-selection,
+.collection-page .post-content .collection-history-caption {
+  color: var(--collection-text-faint);
 }
 
 .collection-app {
@@ -204,7 +242,7 @@
 .collection-empty,
 .collection-detail-copy,
 .collection-detail-meta dd {
-  color: rgba(246, 242, 232, 0.82);
+  color: var(--collection-text-soft);
 }
 
 .collection-status {
@@ -508,7 +546,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(246, 242, 232, 0.58);
+  color: var(--collection-text-label);
 }
 
 .collection-market-value {
@@ -519,7 +557,7 @@
 
 .collection-market-change {
   font-size: 0.76rem;
-  color: rgba(246, 242, 232, 0.7);
+  color: var(--collection-text-soft);
   min-height: 2.15rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -538,7 +576,7 @@
 .collection-movement {
   margin-top: 4px;
   font-size: 0.84rem;
-  color: rgba(246, 242, 232, 0.72);
+  color: var(--collection-text-soft);
   min-height: 2.7rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -807,7 +845,7 @@
 
 .collection-admin-helper p {
   margin: 0;
-  color: rgba(246, 242, 232, 0.78);
+  color: var(--collection-text-soft);
 }
 
 .collection-admin-helper-tags {
@@ -862,7 +900,7 @@
   font-size: 0.82rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(246, 242, 232, 0.64);
+  color: var(--collection-text-label);
 }
 
 .collection-admin-field input,
@@ -944,7 +982,7 @@
   padding: 14px;
   border-radius: 16px;
   border: 1px dashed rgba(255, 255, 255, 0.12);
-  color: rgba(246, 242, 232, 0.72);
+  color: var(--collection-text-faint);
 }
 
 .collection-admin-selection-card {
@@ -996,7 +1034,7 @@
   font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(246, 242, 232, 0.58);
+  color: var(--collection-text-label);
   margin-right: 4px;
 }
 
@@ -1057,7 +1095,7 @@
 
 .collection-admin-entry-copy p {
   margin: 0;
-  color: rgba(246, 242, 232, 0.72);
+  color: var(--collection-text-soft);
 }
 
 .collection-admin-entry-meta {
@@ -1154,7 +1192,7 @@
   font-size: 0.78rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(246, 242, 232, 0.55);
+  color: var(--collection-text-label);
 }
 
 .collection-detail-stat-value,
@@ -1166,7 +1204,7 @@
 .collection-detail-stat-copy {
   margin: 8px 0 0;
   font-size: 0.8rem;
-  color: rgba(246, 242, 232, 0.66);
+  color: var(--collection-text-soft);
 }
 
 .collection-history {
@@ -1250,7 +1288,7 @@
 }
 
 .collection-history-axis-label {
-  fill: rgba(246, 242, 232, 0.58);
+  fill: var(--collection-text-faint);
   font-size: 11px;
 }
 
@@ -1297,7 +1335,7 @@
   font-size: 0.82rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(246, 242, 232, 0.58);
+  color: var(--collection-text-label);
 }
 
 .collection-history--compact .collection-history-summary-label {
@@ -1306,7 +1344,7 @@
 
 .collection-history-summary-delta {
   font-size: 0.82rem;
-  color: rgba(246, 242, 232, 0.72);
+  color: var(--collection-text-soft);
 }
 
 .collection-history--compact .collection-history-summary-delta {
@@ -1325,7 +1363,7 @@
 .collection-history-caption {
   margin-top: 10px;
   font-size: 0.9rem;
-  color: rgba(246, 242, 232, 0.72);
+  color: var(--collection-text-faint);
 }
 
 .collection-history--compact .collection-history-caption {
