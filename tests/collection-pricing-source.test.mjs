@@ -193,10 +193,15 @@ test("stored price payload validation rejects legacy snapshots without a version
   };
   const currentPayload = {
     ...legacyPayload,
+    payloadVersion: 2,
+  };
+  const staleVersionPayload = {
+    ...legacyPayload,
     payloadVersion: 1,
   };
 
   assert.equal(hasCurrentStoredPricePayload(legacyPayload), false);
+  assert.equal(hasCurrentStoredPricePayload(staleVersionPayload), false);
   assert.equal(hasCurrentStoredPricePayload(currentPayload), true);
   assert.match(source, /hasCurrentStoredPricePayload\(storedPayload\)/);
 });
@@ -274,6 +279,13 @@ test("pricecharting product-page validation rejects direct redirects to the wron
 test("snapshot writes persist a version marker for future price-payload invalidation", () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonCollectionDb.ts");
 
-  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 1/);
+  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 2/);
   assert.match(source, /payloadVersion:\s*STORED_PRICE_PAYLOAD_VERSION/);
+});
+
+test("resolveProductPage validates fallback-fetched product pages before accepting them", () => {
+  const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
+
+  assert.match(source, /const fallbackFinalUrl = \(fallbackResponse\.url \|\| fallbackUrl\)\.split\("\?"\)\[0\];/);
+  assert.match(source, /if \(!productPageMatchesCard\(card, fallbackFinalUrl, fallbackHtml\)\)\s*\{\s*continue;\s*\}/s);
 });

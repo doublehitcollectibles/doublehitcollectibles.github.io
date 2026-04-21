@@ -496,9 +496,16 @@ async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Prom
       continue;
     }
 
+    const fallbackHtml = await fallbackResponse.text();
+    const fallbackFinalUrl = (fallbackResponse.url || fallbackUrl).split("?")[0];
+
+    if (!productPageMatchesCard(card, fallbackFinalUrl, fallbackHtml)) {
+      continue;
+    }
+
     return {
-      sourceUrl: fallbackUrl.split("?")[0],
-      html: await fallbackResponse.text(),
+      sourceUrl: fallbackFinalUrl,
+      html: fallbackHtml,
     };
   }
 
