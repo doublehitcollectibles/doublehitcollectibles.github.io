@@ -19,7 +19,7 @@ interface PokemonSnapshotRow {
   price_payload: string;
 }
 
-const STORED_PRICE_PAYLOAD_VERSION = 3;
+const STORED_PRICE_PAYLOAD_VERSION = 4;
 
 export async function writePokemonCardSnapshot(
   db: D1Database,

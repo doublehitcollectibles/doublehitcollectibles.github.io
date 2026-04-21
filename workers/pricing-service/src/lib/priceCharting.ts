@@ -78,6 +78,47 @@ function extractPriceFromCell(html: string, cellId: string): number | null {
   return parseUsdValue(match?.[1]);
 }
 
+function extractPriceChangeFromCell(html: string, cellId: string): number | null {
+  const pattern = new RegExp(
+    `id="${escapeRegex(cellId)}"[\\s\\S]*?<span class="change"[^>]*>\\s*(?:&#43;|\\+|-)?\\s*<span class="js-price">\\$([0-9,]+(?:\\.[0-9]+)?)<\\/span>`,
+    "i",
+  );
+  const cellPattern = new RegExp(`id="${escapeRegex(cellId)}"[\\s\\S]*?<span class="change"[^>]*>([\\s\\S]*?)<\\/span>`, "i");
+  const cellMatch = html.match(cellPattern);
+  const amountMatch = html.match(pattern);
+  const amount = parseUsdValue(amountMatch?.[1]);
+
+  if (amount == null || !cellMatch?.[1]) {
+    return null;
+  }
+
+  const rawChangeMarkup = decodeHtmlEntities(cellMatch[1]).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+  if (rawChangeMarkup.startsWith("-")) {
+    return -amount;
+  }
+
+  if (rawChangeMarkup.startsWith("+") || rawChangeMarkup.startsWith(amountMatch?.[1] ? `$${amountMatch[1]}` : "")) {
+    return amount;
+  }
+
+  return amount;
+}
+
+function buildDailyChangeMetrics(currentPrice: number | null, changeAmount: number | null): Record<string, number | null> {
+  if (currentPrice == null || changeAmount == null) {
+    return {};
+  }
+
+  const previousPrice = currentPrice - changeAmount;
+  const changePercent = previousPrice > 0 ? (changeAmount / previousPrice) * 100 : null;
+
+  return {
+    dailyChangeAmount: changeAmount,
+    dailyChangePercent: changePercent,
+  };
+}
+
 function parseChartData(html: string): Record<string, Array<[number, number]>> {
   const match = html.match(/VGPC\.chart_data = (\{.*?\});/s);
 
@@ -527,10 +568,13 @@ export async function fetchPriceChartingPricing(
   const psaPoints = buildSeriesPoints(chartData.manualonly?.length ? chartData.manualonly : chartData.graded);
 
   const rawPrice = extractPriceFromCell(productPage.html, "used_price") ?? latestSeriesPrice(rawPoints);
+  const rawChangeAmount = extractPriceChangeFromCell(productPage.html, "used_price");
   const psa10Price =
     extractPriceFromCell(productPage.html, "manual_only_price") ??
     extractPriceFromCell(productPage.html, "graded_price") ??
     latestSeriesPrice(psaPoints);
+  const psa10CellId = /id="manual_only_price"/i.test(productPage.html) ? "manual_only_price" : "graded_price";
+  const psa10ChangeAmount = extractPriceChangeFromCell(productPage.html, psa10CellId);
 
   const priceVariants: PokemonPriceVariant[] = [
     {
@@ -540,7 +584,7 @@ export async function fetchPriceChartingPricing(
       currentPrice: rawPrice,
       sourceLabel: "PriceCharting Ungraded",
       updatedAt: latestSeriesCapturedAt(rawPoints),
-      metrics: {},
+      metrics: buildDailyChangeMetrics(rawPrice, rawChangeAmount),
     },
     {
       key: "psa10",
@@ -549,7 +593,7 @@ export async function fetchPriceChartingPricing(
       currentPrice: psa10Price,
       sourceLabel: "PriceCharting PSA 10",
       updatedAt: latestSeriesCapturedAt(psaPoints),
-      metrics: {},
+      metrics: buildDailyChangeMetrics(psa10Price, psa10ChangeAmount),
     },
   ].filter((variant) => variant.currentPrice != null);
 
