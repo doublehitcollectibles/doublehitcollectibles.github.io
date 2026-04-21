@@ -276,6 +276,16 @@
     return `name:"${normalized}"`;
   }
 
+  function getCollectibleSearchPrompt() {
+    return apiBase
+      ? "Enter a card name, number, or variant search."
+      : "Collectible search needs the worker-backed search service.";
+  }
+
+  function getCollectibleSearchUnavailableMessage() {
+    return "Collectible search on this page uses the same worker-backed system as Manage Collection. Configure the collection worker URL to enable it.";
+  }
+
   function selectPrice(card, preferredPriceType) {
     const tcgplayerPrices = card?.tcgplayer?.prices || null;
     const cardmarket = card?.cardmarket?.prices || null;
@@ -1483,29 +1493,33 @@
         state.inlineDetailTarget = null;
         state.inlineDetailCardId = null;
       }
-      elements.searchFeedback.textContent = "Enter a card name or card number to search.";
+      elements.searchFeedback.textContent = getCollectibleSearchPrompt();
       elements.searchResults.innerHTML = "";
       return;
     }
 
-    elements.searchFeedback.textContent = "Searching collectibles...";
+    if (!apiBase) {
+      state.searchResults = [];
+      if (state.inlineDetailTarget === "search") {
+        state.inlineDetailTarget = null;
+        state.inlineDetailCardId = null;
+      }
+      elements.searchFeedback.textContent = getCollectibleSearchUnavailableMessage();
+      elements.searchResults.innerHTML = "";
+      return;
+    }
 
-    if (apiBase) {
-      const payload = await fetchJson(`${apiBase}/api/collectibles/search?q=${encodeURIComponent(query)}`);
-      state.searchResults = Array.isArray(payload?.cards)
-        ? payload.cards.map((card) => normalizeCollectionCardRecord(card))
-        : [];
-    } else {
-      const params = new URLSearchParams({
-        q: buildPokemonQuery(query),
-        pageSize: "12",
-        orderBy: "-set.releaseDate",
-        select: CARD_SELECT_FIELDS,
-      });
-      const payload = await fetchJson(`${directApiBase}/cards?${params.toString()}`);
-      state.searchResults = Array.isArray(payload?.data)
-        ? payload.data.map((card) => mapCardPayload(card, null, []))
-        : [];
+    elements.searchFeedback.textContent = "Searching PriceCharting-backed collectible results...";
+
+    const payload = await fetchJson(`${apiBase}/api/collectibles/search?q=${encodeURIComponent(query)}`);
+    state.searchResults = Array.isArray(payload?.cards)
+      ? payload.cards.map((card) => normalizeCollectionCardRecord(card))
+      : [];
+
+    if (!state.searchResults.length) {
+      elements.searchFeedback.textContent = "No collectible results found. Try a card number, variant name, or sealed product search.";
+      renderSearchResultsGrid();
+      return;
     }
 
     elements.searchFeedback.textContent = `${state.searchResults.length} result${state.searchResults.length === 1 ? "" : "s"} found.`;
@@ -1522,6 +1536,8 @@
   }
 
   function bindEvents() {
+    elements.searchFeedback.textContent = getCollectibleSearchPrompt();
+
     elements.searchForm.addEventListener("submit", (event) => {
       event.preventDefault();
       const query = new FormData(elements.searchForm).get("query");

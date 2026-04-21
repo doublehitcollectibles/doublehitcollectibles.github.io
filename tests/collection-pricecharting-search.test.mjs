@@ -207,10 +207,15 @@ test("public explorer and admin workspace both use pricecharting-backed collecti
   const collectionSource = readFile("assets/js/collection.js");
   const adminSource = readFile("assets/js/collection-admin.js");
   const workerSource = readFile("workers/pricing-service/src/index.ts");
+  const publicSearchBlock = extractBetween(collectionSource, "async function searchCards(query)", "function bindEvents");
 
   assert.match(collectionSource, /\/api\/collectibles\/search\?q=/);
   assert.match(adminSource, /\/api\/collectibles\/search\?q=/);
   assert.doesNotMatch(adminSource, /\/api\/pokemon\/cards\/search\?q=/);
+  assert.doesNotMatch(publicSearchBlock, /directApiBase/);
+  assert.match(collectionSource, /Enter a card name, number, or variant search\./);
+  assert.match(collectionSource, /Searching PriceCharting-backed collectible results\.\.\./);
+  assert.match(collectionSource, /No collectible results found\. Try a card number, variant name, or sealed product search\./);
   assert.match(workerSource, /\/api\/collectibles\/search/);
   assert.match(workerSource, /\/api\/pricecharting\/search/);
   assert.match(workerSource, /\/api\/pricecharting\/item/);

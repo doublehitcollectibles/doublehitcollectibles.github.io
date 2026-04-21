@@ -50,7 +50,7 @@ page_class: collection-page
   <section class="collection-search">
     <div class="collection-section-heading">
       <h2>Collectible Explorer</h2>
-      <p>Search Pokemon cards, sealed product, and other TCG collectibles with Pokemon TCG pricing where available plus PriceCharting support for sealed and cross-game results.</p>
+      <p>Use the same PriceCharting-backed search system as Manage Collection to find cards, metal variants, sealed product, and other TCG collectibles.</p>
     </div>
     <form class="collection-search-form collection-search-form--hero" data-card-search-form>
       <label class="screen-reader-text" for="collection-search-input">Search collectibles</label>
@@ -58,7 +58,7 @@ page_class: collection-page
         id="collection-search-input"
         name="query"
         type="search"
-        placeholder="Search a card, sealed product, or Riftbound collectible"
+        placeholder="Search a card, number, or variant like Mew 205 Metal"
         autocomplete="off"
       />
       <button type="submit">Search</button>
