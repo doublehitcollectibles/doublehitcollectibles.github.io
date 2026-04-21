@@ -19,6 +19,8 @@ interface PokemonSnapshotRow {
   price_payload: string;
 }
 
+const STORED_PRICE_PAYLOAD_VERSION = 1;
+
 export async function writePokemonCardSnapshot(
   db: D1Database,
   summary: PokemonCardSummary,
@@ -64,6 +66,7 @@ export async function writePokemonCardSnapshot(
       (rawCard.cardmarket as { updatedAt?: string } | undefined)?.updatedAt ?? null,
       JSON.stringify(rawCard),
       JSON.stringify({
+        payloadVersion: STORED_PRICE_PAYLOAD_VERSION,
         pricing: summary.pricing,
         priceVariants: summary.priceVariants,
         historySeries: summary.historySeries,
