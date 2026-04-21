@@ -77,7 +77,7 @@ interface StoredPricePayload {
   externalPricingChecked?: boolean;
 }
 
-const STORED_PRICE_PAYLOAD_VERSION = 2;
+const STORED_PRICE_PAYLOAD_VERSION = 3;
 
 const CARD_SELECT_FIELDS = [
   "id",
@@ -496,12 +496,7 @@ function buildPricingPresentation(
   const externalVariants = (storedPayload?.priceVariants || []).map((variant) => enrichVariantUpdatedAt(variant, storedHistorySeries));
   const baseRawVariant = buildRawVariant(basePricing);
   const externalRawVariant = externalVariants.find((variant) => variant.key === "raw") || null;
-  const baseRawUpdatedAt = parseUpdatedAt(baseRawVariant?.updatedAt);
-  const externalRawUpdatedAt = parseUpdatedAt(externalRawVariant?.updatedAt);
-  const preferExternalRaw = Boolean(
-    externalRawVariant &&
-      (!baseRawVariant || !baseRawUpdatedAt || (externalRawUpdatedAt && externalRawUpdatedAt > baseRawUpdatedAt)),
-  );
+  const preferExternalRaw = Boolean(externalRawVariant);
   const rawVariant = preferExternalRaw ? externalRawVariant : baseRawVariant || externalRawVariant;
   const otherVariants = externalVariants.filter((variant) => variant.key !== "raw");
   const priceVariants = [rawVariant, ...otherVariants].filter(Boolean) as PokemonPriceVariant[];

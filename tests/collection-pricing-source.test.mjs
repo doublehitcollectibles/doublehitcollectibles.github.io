@@ -106,7 +106,7 @@ test("pricing presentation prefers the fresher raw source and keeps raw history 
   assert.equal(presentation.historySeries[0]?.points.at(-1)?.price, 39.5);
 });
 
-test("pricing presentation keeps snapshot history when tcgplayer is fresher than pricecharting raw", () => {
+test("pricing presentation keeps using correlated PriceCharting raw when external raw pricing exists", () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
   const helperBlock = extractBetween(source, "function toTitleLabel", "export function mapPokemonCardSummary");
   const buildHelpers = new Function(`${transpile(helperBlock)}; return { buildPricingPresentation };`);
@@ -153,12 +153,12 @@ test("pricing presentation keeps snapshot history when tcgplayer is fresher than
 
   const presentation = buildPricingPresentation(basePricing, history, storedPayload);
 
-  assert.equal(presentation.pricing.currentPrice, 41.15);
-  assert.equal(presentation.pricing.sourceLabel, "TCGplayer Market");
-  assert.equal(presentation.priceVariants[0]?.currentPrice, 41.15);
-  assert.equal(presentation.historySeries[0]?.key, "snapshot");
-  assert.equal(presentation.historySeries[0]?.sourceLabel, "TCGplayer Market");
-  assert.equal(presentation.historySeries[0]?.points.at(-1)?.price, 41.15);
+  assert.equal(presentation.pricing.currentPrice, 39.5);
+  assert.equal(presentation.pricing.sourceLabel, "PriceCharting Ungraded");
+  assert.equal(presentation.priceVariants[0]?.currentPrice, 39.5);
+  assert.equal(presentation.historySeries[0]?.key, "raw");
+  assert.equal(presentation.historySeries[0]?.sourceLabel, "PriceCharting Ungraded");
+  assert.equal(presentation.historySeries[0]?.points.at(-1)?.price, 39.5);
 });
 
 test("stored price payload validation rejects legacy snapshots without a version marker", () => {
@@ -193,11 +193,11 @@ test("stored price payload validation rejects legacy snapshots without a version
   };
   const currentPayload = {
     ...legacyPayload,
-    payloadVersion: 2,
+    payloadVersion: 3,
   };
   const staleVersionPayload = {
     ...legacyPayload,
-    payloadVersion: 1,
+    payloadVersion: 2,
   };
 
   assert.equal(hasCurrentStoredPricePayload(legacyPayload), false);
@@ -279,7 +279,7 @@ test("pricecharting product-page validation rejects direct redirects to the wron
 test("snapshot writes persist a version marker for future price-payload invalidation", () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonCollectionDb.ts");
 
-  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 2/);
+  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 3/);
   assert.match(source, /payloadVersion:\s*STORED_PRICE_PAYLOAD_VERSION/);
 });
 
