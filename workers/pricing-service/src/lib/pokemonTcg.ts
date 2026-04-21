@@ -152,6 +152,19 @@ function formatOwnershipPriceVariantLabel(value: string | undefined): string {
   return normalizeOwnershipPriceVariant(value) === "psa10" ? "PSA 10" : "Raw";
 }
 
+function buildOwnershipDisplayTitle(title: string | undefined, ownership: OwnedCollectionEntry | null): string {
+  const normalizedTitle = String(title ?? "").trim();
+  const baseTitle = normalizedTitle.replace(/\s+PSA\s*10$/i, "").trim() || normalizedTitle;
+
+  if (!baseTitle) {
+    return "";
+  }
+
+  return normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant) === "psa10"
+    ? `${baseTitle} PSA 10`
+    : baseTitle;
+}
+
 function resolveOwnershipComparisonVariant(
   pricing: PokemonCardSummary["pricing"] | CustomCollectionSummary["pricing"],
   priceVariants: PokemonPriceVariant[],
@@ -555,6 +568,7 @@ function mapPriceChartingCollectibleToCustomSummary(
   ownership: OwnedCollectionEntry | null,
 ): CustomCollectionSummary {
   const pricing = buildCustomPricing(detail.priceVariants, "PriceCharting", "USD");
+  const displayTitle = buildOwnershipDisplayTitle(normalizeDisplayText(ownership?.label) || detail.title, ownership);
   const subtitle =
     buildCustomCollectibleSubtitle({
       game: detail.game,
@@ -566,7 +580,7 @@ function mapPriceChartingCollectibleToCustomSummary(
   return {
     kind: "custom",
     id: detail.id,
-    title: normalizeDisplayText(ownership?.label) || detail.title,
+    title: displayTitle,
     cardName: detail.title,
     subtitle,
     source: "custom",
@@ -609,7 +623,7 @@ function mapPriceChartingCollectibleToCustomSummary(
 function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrency: string): CustomCollectionSummary {
   const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
   const currency = entry.currency || fallbackCurrency || "USD";
-  const title = normalizeDisplayText(entry.label) || "Custom Collection Item";
+  const title = buildOwnershipDisplayTitle(normalizeDisplayText(entry.label) || "Custom Collection Item", entry);
   const subtitle = buildCustomCollectibleSubtitle(entry) || "Manual collectible";
 
   return {
@@ -775,11 +789,12 @@ export function mapPokemonCardSummary(
   const ownershipMetrics = computeOwnershipMetrics(pricing, priceVariants, ownership);
   const setName = card.set?.name || "Unknown Set";
   const subtitle = [setName, card.rarity, card.number].filter(Boolean).join(" | ");
+  const displayTitle = buildOwnershipDisplayTitle(normalizeDisplayText(ownership?.label) || card.name, ownership);
 
   return {
     kind: "api",
     id: card.id,
-    title: ownership?.label || card.name,
+    title: displayTitle,
     cardName: card.name,
     subtitle,
     image: card.images?.large || card.images?.small || "",
