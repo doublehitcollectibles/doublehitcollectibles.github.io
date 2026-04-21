@@ -163,6 +163,12 @@ export interface CustomCollectionSummary {
   title: string;
   cardName: string;
   subtitle: string;
+  source?: "custom";
+  game?: string;
+  category?: string;
+  series?: string;
+  variant?: string;
+  itemNumber?: string;
   image: string;
   thumbnail: string;
   setName: string;

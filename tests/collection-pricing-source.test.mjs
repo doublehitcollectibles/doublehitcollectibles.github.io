@@ -209,7 +209,7 @@ test("stored price payload validation rejects legacy snapshots without a version
 test("pricecharting candidate scoring rejects loose cross-card matches like Mewtwo and Mew GX for Mewtwo 52", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
-  const buildHelpers = new Function(`${transpile(helperBlock)}; return { scoreCandidate };`);
+  const buildHelpers = new Function(`const exports = {}; const PRICECHARTING_BASE_URL = "https://www.pricecharting.com"; ${transpile(helperBlock)}; return { scoreCandidate };`);
   const { scoreCandidate } = buildHelpers();
 
   const card = {
@@ -246,7 +246,7 @@ test("pricecharting candidate scoring rejects loose cross-card matches like Mewt
 test("pricecharting pricing parser reads explicit daily changes from the price cells", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
-  const buildHelpers = new Function(`${transpile(helperBlock)}; return { extractPriceChangeFromCell, buildDailyChangeMetrics };`);
+  const buildHelpers = new Function(`const exports = {}; const PRICECHARTING_BASE_URL = "https://www.pricecharting.com"; ${transpile(helperBlock)}; return { extractPriceChangeFromCell, buildDailyChangeMetrics };`);
   const { extractPriceChangeFromCell, buildDailyChangeMetrics } = buildHelpers();
 
   const html = `
@@ -275,7 +275,7 @@ test("pricecharting pricing parser reads explicit daily changes from the price c
 test("pricecharting product-page validation rejects direct redirects to the wrong card page", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
-  const buildHelpers = new Function(`${transpile(helperBlock)}; return { productPageMatchesCard };`);
+  const buildHelpers = new Function(`const exports = {}; const PRICECHARTING_BASE_URL = "https://www.pricecharting.com"; ${transpile(helperBlock)}; return { productPageMatchesCard };`);
   const { productPageMatchesCard } = buildHelpers();
 
   const card = {

@@ -83,7 +83,7 @@ page_class: collection-page collection-admin-page
           </div>
 
           <form class="collection-search-form collection-admin-search-form" data-admin-search-form>
-            <label class="screen-reader-text" for="collection-admin-search-input">Search cards</label>
+            <label class="screen-reader-text" for="collection-admin-search-input">Search collectibles</label>
             <input
               id="collection-admin-search-input"
               name="query"
@@ -94,8 +94,8 @@ page_class: collection-page collection-admin-page
             <button type="submit">Search</button>
           </form>
           <div class="collection-admin-helper" data-admin-custom-helper hidden>
-            <h3>Manual collectible mode</h3>
-            <p>Add sealed product or other games from the form on the right. This mode is ideal for Pokemon sealed, Riftbound singles, decks, booster boxes, promos, and anything else without a live API lookup.</p>
+            <h3>PriceCharting collectible search</h3>
+            <p>Search PriceCharting for Pokemon sealed product, Riftbound singles, decks, booster boxes, promos, and other collectibles, then fine-tune the fields on the right before saving.</p>
             <div class="collection-admin-helper-tags">
               <span>Pokemon ETB</span>
               <span>Riftbound Single</span>

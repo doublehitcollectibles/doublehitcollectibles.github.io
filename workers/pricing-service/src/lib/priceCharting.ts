@@ -19,10 +19,32 @@ interface PriceChartingProductPage {
   html: string;
 }
 
+export interface PriceChartingSearchResult {
+  id: string;
+  sourceUrl: string;
+  title: string;
+  setName: string;
+  thumbnail: string;
+  currentPrice: number | null;
+}
+
 export interface PriceChartingPricing {
   sourceUrl: string;
   priceVariants: PokemonPriceVariant[];
   historySeries: PokemonPriceHistorySeries[];
+}
+
+export interface PriceChartingCollectibleDetail extends PriceChartingPricing {
+  id: string;
+  title: string;
+  game: string;
+  category: string;
+  series: string;
+  itemNumber: string;
+  description: string;
+  image: string;
+  thumbnail: string;
+  setName: string;
 }
 
 const PRICECHARTING_BASE_URL = "https://www.pricecharting.com";
@@ -67,6 +89,172 @@ function parseUsdValue(value: string | undefined): number | null {
 
   const numeric = Number(value.replace(/[$,]/g, "").trim());
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function stripHtmlTags(value: string | undefined): string {
+  return decodeHtmlEntities(String(value || "").replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function buildPriceChartingCollectionId(sourceUrl: string): string {
+  try {
+    const pathname = new URL(sourceUrl).pathname;
+    return `pricecharting:${pathname}`;
+  } catch {
+    return `pricecharting:${String(sourceUrl || "").trim()}`;
+  }
+}
+
+export function isPriceChartingCollectionId(value: string | undefined): boolean {
+  return /^pricecharting:(\/game\/|https:\/\/www\.pricecharting\.com\/game\/)/i.test(String(value || "").trim());
+}
+
+export function priceChartingCollectionIdToUrl(value: string | undefined): string | null {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^https:\/\/www\.pricecharting\.com\/game\//i.test(normalized)) {
+    return normalized.split("?")[0];
+  }
+
+  if (!isPriceChartingCollectionId(normalized)) {
+    return null;
+  }
+
+  const path = normalized.replace(/^pricecharting:/i, "");
+  return new URL(path, PRICECHARTING_BASE_URL).toString().split("?")[0];
+}
+
+function extractThumbnailFromHtml(html: string): string {
+  const dialogImageMatch = html.match(/<div id="js-dialog-large-image"[\s\S]*?<img[^>]+src=['"]([^'"]+)['"]/i);
+  const metaImageMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+  return decodeHtmlEntities(dialogImageMatch?.[1] || metaImageMatch?.[1] || "");
+}
+
+function extractTitleSegments(html: string): { itemTitle: string; setName: string; categoryLabel: string } {
+  const titleMatch = html.match(/<title>\s*([^<]+?)\s*<\/title>/i);
+  const rawTitle = normalizeQueryPart(decodeHtmlEntities(titleMatch?.[1]));
+  const [rawItemTitle = "", rawSetName = "", rawCategoryLabel = ""] = rawTitle.split("|").map((segment) => normalizeQueryPart(segment));
+
+  return {
+    itemTitle: normalizeQueryPart(rawItemTitle.replace(/\s+prices?$/i, "")),
+    setName: rawSetName,
+    categoryLabel: rawCategoryLabel,
+  };
+}
+
+function extractDetailValue(html: string, label: string): string {
+  const pattern = new RegExp(
+    `<tr>[\\s\\S]*?<td[^>]*>\\s*${escapeRegex(label)}\\s*:?\\s*<\\/td>[\\s\\S]*?<td[^>]*>([\\s\\S]*?)<\\/td>[\\s\\S]*?<\\/tr>`,
+    "i",
+  );
+  const match = html.match(pattern);
+  const cleaned = stripHtmlTags(match?.[1]);
+
+  if (!cleaned || cleaned.toLowerCase() === "none" || cleaned.toLowerCase() === "n/a") {
+    return "";
+  }
+
+  return cleaned;
+}
+
+function extractBreadcrumbCategory(html: string): string {
+  const matches = Array.from(html.matchAll(/<a href="\/category\/[^"]+">\s*([^<]+?)\s*<\/a>/gi));
+  return normalizeQueryPart(decodeHtmlEntities(matches[matches.length - 1]?.[1]));
+}
+
+function normalizeGameName(setName: string, breadcrumbCategory: string): string {
+  const normalizedCategory = normalizeQueryPart(breadcrumbCategory);
+  const normalizedSet = normalizeQueryPart(setName);
+
+  if (!normalizedSet) {
+    return "";
+  }
+
+  if (/other tcg cards/i.test(normalizedCategory)) {
+    return normalizeQueryPart(normalizedSet.split(" ")[0]);
+  }
+
+  if (/cards?$/i.test(normalizedCategory)) {
+    return normalizeQueryPart(normalizedCategory.replace(/\s*cards?$/i, ""));
+  }
+
+  return normalizeQueryPart(normalizedSet.split(" ")[0]);
+}
+
+function normalizeSeriesName(setName: string, game: string): string {
+  const normalizedSet = normalizeQueryPart(setName);
+  const normalizedGame = normalizeQueryPart(game);
+
+  if (!normalizedSet) {
+    return "";
+  }
+
+  if (normalizedGame && normalizedSet.toLowerCase().startsWith(`${normalizedGame.toLowerCase()} `)) {
+    return normalizedSet.slice(normalizedGame.length).trim();
+  }
+
+  return normalizedSet;
+}
+
+export function extractCollectiblePageMetadata(sourceUrl: string, html: string) {
+  const titleSegments = extractTitleSegments(html);
+  const rawSetName =
+    normalizeQueryPart(extractDetailValue(html, "Set")) ||
+    normalizeQueryPart(extractDetailValue(html, "Platform")) ||
+    normalizeQueryPart(extractDetailValue(html, "Series")) ||
+    normalizeQueryPart(titleSegments.setName) ||
+    normalizeQueryPart(decodeHtmlEntities(html.match(/<meta itemprop="operatingSystem" content="([^"]+)"/i)?.[1]));
+  const breadcrumbCategory = extractBreadcrumbCategory(html) || normalizeQueryPart(titleSegments.categoryLabel);
+  const game = normalizeGameName(rawSetName, breadcrumbCategory);
+  const itemTitle =
+    normalizeQueryPart(decodeHtmlEntities(html.match(/<meta itemprop="name" content="([^"]+)"/i)?.[1])) ||
+    titleSegments.itemTitle;
+  const image = extractThumbnailFromHtml(html);
+
+  return {
+    title: itemTitle,
+    game,
+    category: normalizeQueryPart(extractDetailValue(html, "Genre")) || "Collectible",
+    series: normalizeSeriesName(rawSetName, game),
+    itemNumber: normalizeQueryPart(extractDetailValue(html, "Card Number")).replace(/^#/, ""),
+    description: normalizeQueryPart(extractDetailValue(html, "Description")),
+    image,
+    setName: rawSetName,
+  };
+}
+
+export function parseSearchResultRows(html: string): PriceChartingSearchResult[] {
+  const rowPattern = /<tr id="product-\d+"[\s\S]*?<\/tr>/gi;
+  const results: PriceChartingSearchResult[] = [];
+
+  for (const match of html.matchAll(rowPattern)) {
+    const row = match[0];
+    const linkMatch = row.match(/<td class="title">[\s\S]*?<a href="(https:\/\/www\.pricecharting\.com\/game\/[^"]+)"[^>]*>\s*([\s\S]*?)<\/a>/i);
+    const setMatch = row.match(/<div class="console-in-title">[\s\S]*?<a [^>]*>\s*([\s\S]*?)<\/a>/i);
+    const imageMatch = row.match(/<img[^>]+src="([^"]+)"/i);
+    const priceMatch = row.match(/class="price numeric used_price"[\s\S]*?<span class="js-price">\s*\$([0-9,]+(?:\.[0-9]+)?)<\/span>/i);
+
+    if (!linkMatch?.[1] || !linkMatch?.[2]) {
+      continue;
+    }
+
+    const sourceUrl = decodeHtmlEntities(linkMatch[1]).split("?")[0];
+    results.push({
+      id: buildPriceChartingCollectionId(sourceUrl),
+      sourceUrl,
+      title: normalizeQueryPart(stripHtmlTags(linkMatch[2])),
+      setName: normalizeQueryPart(stripHtmlTags(setMatch?.[1])),
+      thumbnail: decodeHtmlEntities(imageMatch?.[1] || ""),
+      currentPrice: parseUsdValue(priceMatch?.[1]),
+    });
+  }
+
+  return results;
 }
 
 function extractPriceFromCell(html: string, cellId: string): number | null {
@@ -553,16 +741,33 @@ async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Prom
   return null;
 }
 
-export async function fetchPriceChartingPricing(
-  env: Env,
-  card: PriceChartingLookupCard,
-): Promise<PriceChartingPricing | null> {
-  const productPage = await resolveProductPage(env, card);
+async function resolveProductPageFromIdentifier(env: Env, value: string): Promise<PriceChartingProductPage | null> {
+  const sourceUrl = priceChartingCollectionIdToUrl(value) || value;
 
-  if (!productPage) {
+  if (!/^https:\/\/www\.pricecharting\.com\/game\//i.test(String(sourceUrl || "").trim())) {
     return null;
   }
 
+  const response = await fetchHtml(env, sourceUrl);
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const html = await response.text();
+  const finalUrl = (response.url || sourceUrl).split("?")[0];
+
+  if (!finalUrl.includes("/game/") || !isProductPageHtml(html)) {
+    return null;
+  }
+
+  return {
+    sourceUrl: finalUrl,
+    html,
+  };
+}
+
+function buildPriceChartingPricingFromProductPage(productPage: PriceChartingProductPage): PriceChartingPricing | null {
   const chartData = parseChartData(productPage.html);
   const rawPoints = buildSeriesPoints(chartData.used);
   const psaPoints = buildSeriesPoints(chartData.manualonly?.length ? chartData.manualonly : chartData.graded);
@@ -629,4 +834,106 @@ export async function fetchPriceChartingPricing(
     priceVariants,
     historySeries,
   };
+}
+
+function buildSearchResultFromProductPage(productPage: PriceChartingProductPage): PriceChartingSearchResult | null {
+  const metadata = extractCollectiblePageMetadata(productPage.sourceUrl, productPage.html);
+  const pricing = buildPriceChartingPricingFromProductPage(productPage);
+  const rawVariant = pricing?.priceVariants.find((variant) => variant.key === "raw") || pricing?.priceVariants[0] || null;
+
+  if (!metadata.title) {
+    return null;
+  }
+
+  return {
+    id: buildPriceChartingCollectionId(productPage.sourceUrl),
+    sourceUrl: productPage.sourceUrl,
+    title: metadata.title,
+    setName: metadata.setName,
+    thumbnail: metadata.image,
+    currentPrice: rawVariant?.currentPrice ?? null,
+  };
+}
+
+export async function searchPriceChartingProducts(
+  env: Env,
+  query: string,
+  limit = 12,
+): Promise<PriceChartingSearchResult[]> {
+  const normalizedQuery = normalizeQueryPart(query);
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const searchUrl = new URL(PRICECHARTING_SEARCH_URL);
+  searchUrl.searchParams.set("type", "prices");
+  searchUrl.searchParams.set("q", normalizedQuery);
+
+  const response = await fetchHtml(env, searchUrl.toString());
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const html = await response.text();
+  const finalUrl = (response.url || searchUrl.toString()).split("?")[0];
+
+  if (finalUrl.includes("/game/") || isProductPageHtml(html)) {
+    const directResult = buildSearchResultFromProductPage({
+      sourceUrl: finalUrl,
+      html,
+    });
+
+    return directResult ? [directResult] : [];
+  }
+
+  return parseSearchResultRows(html).slice(0, Math.max(1, limit));
+}
+
+export async function fetchPriceChartingCollectible(
+  env: Env,
+  value: string,
+): Promise<PriceChartingCollectibleDetail | null> {
+  const productPage = await resolveProductPageFromIdentifier(env, value);
+
+  if (!productPage) {
+    return null;
+  }
+
+  const metadata = extractCollectiblePageMetadata(productPage.sourceUrl, productPage.html);
+  const pricing = buildPriceChartingPricingFromProductPage(productPage);
+
+  if (!metadata.title) {
+    return null;
+  }
+
+  return {
+    id: buildPriceChartingCollectionId(productPage.sourceUrl),
+    sourceUrl: productPage.sourceUrl,
+    title: metadata.title,
+    game: metadata.game,
+    category: metadata.category,
+    series: metadata.series,
+    itemNumber: metadata.itemNumber,
+    description: metadata.description,
+    image: metadata.image,
+    thumbnail: metadata.image,
+    setName: metadata.setName,
+    priceVariants: pricing?.priceVariants || [],
+    historySeries: pricing?.historySeries || [],
+  };
+}
+
+export async function fetchPriceChartingPricing(
+  env: Env,
+  card: PriceChartingLookupCard,
+): Promise<PriceChartingPricing | null> {
+  const productPage = await resolveProductPage(env, card);
+
+  if (!productPage) {
+    return null;
+  }
+
+  return buildPriceChartingPricingFromProductPage(productPage);
 }
