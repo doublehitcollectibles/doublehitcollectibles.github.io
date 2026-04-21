@@ -1043,13 +1043,6 @@ export async function getStoredCollectionCards(env: Env): Promise<CollectionDisp
   const fallbackCurrency = getOwnedCollection().currency ?? "USD";
   const results = await Promise.allSettled(
     storedCards.map((entry) => {
-      if (entry.source === "custom" && isPriceChartingCollectionId(entry.cardId)) {
-        return getPriceChartingCollectibleDetail(env, entry.cardId || "", entry as CollectionCardRecord).catch((error) => {
-          console.error("Falling back to stored PriceCharting collectible snapshot.", error);
-          return mapCustomCollectionSummary(entry, fallbackCurrency);
-        });
-      }
-
       if (entry.source === "custom") {
         return Promise.resolve(mapCustomCollectionSummary(entry, fallbackCurrency));
       }
