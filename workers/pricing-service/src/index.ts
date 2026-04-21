@@ -22,6 +22,7 @@ import {
   getStoredCollectionCards,
   refreshTrackedPokemonCollection,
 } from "./lib/pokemonTcg";
+import { isPriceChartingCollectionId } from "./lib/priceCharting";
 import { PricingLock } from "./durableObjects/PricingLock";
 import { refreshPricingJob } from "./pipeline/refresh";
 import { enqueueDueWatchlistRefreshes } from "./pipeline/watchlist";
@@ -87,7 +88,10 @@ function ensureCollectionCardId(entry: OwnedCollectionEntry): string {
 }
 
 function isTrackedPokemonEntry(entry: OwnedCollectionEntry): boolean {
-  return normalizeEntrySource(entry.source) === "api" && Boolean(entry.cardId);
+  return Boolean(entry.cardId) && (
+    normalizeEntrySource(entry.source) === "api" ||
+    isPriceChartingCollectionId(entry.cardId)
+  );
 }
 
 async function getAllTrackedPokemonEntries(env: Env): Promise<OwnedCollectionEntry[]> {
@@ -480,7 +484,7 @@ async function handlePriceChartingItemDetail(request: Request, env: Env): Promis
 }
 
 const worker: ExportedHandler<Env, PricingJob> = {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
 
@@ -528,6 +532,13 @@ const worker: ExportedHandler<Env, PricingJob> = {
     }
 
     if (request.method === "GET" && url.pathname === "/api/collection/cards") {
+      ctx.waitUntil(
+        getAllTrackedPokemonEntries(env)
+          .then((entries) => refreshTrackedPokemonCollection(env, entries))
+          .catch((error) => {
+            console.error("Background collection refresh failed.", error);
+          }),
+      );
       return handleCollectionCardsGet(request, env);
     }
 

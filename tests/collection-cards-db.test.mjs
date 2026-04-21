@@ -63,6 +63,9 @@ test("listCollectionCards falls back to the legacy column set when the custom-en
                 currency: null,
                 current_price: null,
                 price_source: null,
+                price_payload: null,
+                market_source_url: null,
+                price_refreshed_at: null,
                 quantity: 1,
                 purchase_price: 35,
                 purchase_date: null,
@@ -90,4 +93,7 @@ test("listCollectionCards falls back to the legacy column set when the custom-en
   assert.match(queries[0], /\bsource\b/);
   assert.match(queries[1], /NULL AS source/);
   assert.match(queries[1], /NULL AS ownership_price_variant/);
+  assert.match(queries[1], /NULL AS price_payload/);
+  assert.match(queries[1], /NULL AS market_source_url/);
+  assert.match(queries[1], /NULL AS price_refreshed_at/);
 });

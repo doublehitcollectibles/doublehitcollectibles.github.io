@@ -141,6 +141,9 @@ export interface OwnedCollectionEntry {
   currency?: string;
   currentPrice?: number;
   priceSource?: string;
+  pricePayload?: string;
+  marketSourceUrl?: string;
+  priceRefreshedAt?: string;
   updatedAt?: string;
 }
 
