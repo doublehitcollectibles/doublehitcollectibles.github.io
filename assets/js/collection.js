@@ -1186,6 +1186,33 @@
     return normalizeCollectionCardRecord(card);
   }
 
+  function isPriceChartingCardRecord(card) {
+    return (
+      card?.kind === "custom" &&
+      /^pricecharting:/i.test(String(card?.id || card?.ownership?.cardId || ""))
+    );
+  }
+
+  async function fetchWorkerCustomCard(cardId, ownership) {
+    const params = new URLSearchParams({
+      id: cardId,
+    });
+    const payload = await fetchJson(`${apiBase}/api/pricecharting/item?${params.toString()}`);
+    const card = payload.card || null;
+
+    if (!card) {
+      throw new Error("Collectible detail is unavailable.");
+    }
+
+    if (ownership) {
+      card.ownership = ownership;
+      card.ownershipMetrics = computeOwnershipMetrics(card.pricing?.currentPrice ?? null, ownership);
+      card.title = normalizeDisplayText(ownership.label) || getCardDisplayTitle(card);
+    }
+
+    return normalizeCollectionCardRecord(card);
+  }
+
   async function fetchDirectCard(cardId, ownership) {
     const params = new URLSearchParams({ select: CARD_SELECT_FIELDS });
     const payload = await fetchJson(`${directApiBase}/cards/${encodeURIComponent(cardId)}?${params.toString()}`);
@@ -1273,6 +1300,8 @@
 
     if (apiBase && card.kind === "api") {
       selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
+    } else if (apiBase && isPriceChartingCardRecord(card)) {
+      selectedCard = await fetchWorkerCustomCard(card.id, card.ownership);
     }
 
     if (requestId !== state.selectionRequestId) {
@@ -1333,10 +1362,10 @@
       return;
     }
 
-    elements.searchFeedback.textContent = "Searching cards...";
+    elements.searchFeedback.textContent = "Searching collectibles...";
 
     if (apiBase) {
-      const payload = await fetchJson(`${apiBase}/api/pokemon/cards/search?q=${encodeURIComponent(query)}`);
+      const payload = await fetchJson(`${apiBase}/api/collectibles/search?q=${encodeURIComponent(query)}`);
       state.searchResults = Array.isArray(payload?.cards)
         ? payload.cards.map((card) => normalizeCollectionCardRecord(card))
         : [];

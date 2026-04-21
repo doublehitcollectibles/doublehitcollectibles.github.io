@@ -49,16 +49,16 @@ page_class: collection-page
 
   <section class="collection-search">
     <div class="collection-section-heading">
-      <h2>Card Explorer</h2>
-      <p>Search cards with Pokemon TCG market data as the primary source, plus PriceCharting backup for PSA 10 and missing market gaps.</p>
+      <h2>Collectible Explorer</h2>
+      <p>Search Pokemon cards, sealed product, and other TCG collectibles with Pokemon TCG pricing where available plus PriceCharting support for sealed and cross-game results.</p>
     </div>
     <form class="collection-search-form collection-search-form--hero" data-card-search-form>
-      <label class="screen-reader-text" for="collection-search-input">Search cards</label>
+      <label class="screen-reader-text" for="collection-search-input">Search collectibles</label>
       <input
         id="collection-search-input"
         name="query"
         type="search"
-        placeholder="Search a card like Mewtwo 281"
+        placeholder="Search a card, sealed product, or Riftbound collectible"
         autocomplete="off"
       />
       <button type="submit">Search</button>
@@ -69,8 +69,8 @@ page_class: collection-page
 
   <section class="collection-detail" data-card-detail>
     <div class="collection-section-heading">
-      <h2>Card Detail</h2>
-      <p>Select a card from your collection or the search results to view its metadata, market pricing, and price history.</p>
+      <h2>Collectible Detail</h2>
+      <p>Select a card or collectible from your collection or the search results to view its metadata, market pricing, and price history.</p>
     </div>
     <div class="collection-detail-panel" data-card-detail-panel>
       Choose a card to inspect its artwork, set details, weaknesses, attacks, legality, and market profile.

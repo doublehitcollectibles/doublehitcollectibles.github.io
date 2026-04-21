@@ -2,7 +2,12 @@ import { getPricingConfig } from "../config";
 import { listCollectionCards } from "./collectionCardsDb";
 import { getOwnedCollection } from "./ownedCollection";
 import { getPokemonCardHistory, getLatestPokemonCardSnapshot, writePokemonCardSnapshot } from "./pokemonCollectionDb";
-import { fetchPriceChartingPricing } from "./priceCharting";
+import {
+  fetchPriceChartingCollectible,
+  fetchPriceChartingPricing,
+  isPriceChartingCollectionId,
+  searchPriceChartingProducts,
+} from "./priceCharting";
 import type {
   CollectionDisplayCard,
   CollectionCardRecord,
@@ -386,6 +391,173 @@ function buildCustomCollectibleSubtitle(entry: OwnedCollectionEntry): string {
     .join(" | ");
 }
 
+function buildCustomHistoryFromSeries(priceVariants: PokemonPriceVariant[], historySeries: PokemonPriceHistorySeries[]): PokemonHistoryPoint[] {
+  const rawSeries = historySeries.find((series) => series.key === "raw") || historySeries[0] || null;
+  const rawVariant = priceVariants.find((variant) => variant.key === "raw") || priceVariants[0] || null;
+
+  if (!rawSeries?.points?.length) {
+    return [];
+  }
+
+  return rawSeries.points.map((point) => ({
+    capturedAt: point.capturedAt,
+    marketPrice: point.price,
+    currency: rawSeries.currency || rawVariant?.currency || "USD",
+    priceType: rawSeries.key,
+    priceSource: rawSeries.sourceLabel || rawVariant?.sourceLabel || "PriceCharting",
+  }));
+}
+
+function buildCustomPricing(
+  priceVariants: PokemonPriceVariant[],
+  fallbackSourceLabel: string,
+  fallbackCurrency: string,
+): CustomCollectionSummary["pricing"] {
+  const rawVariant = priceVariants.find((variant) => variant.key === "raw") || priceVariants[0] || null;
+
+  return {
+    priceType: rawVariant?.key || "manual",
+    currency: rawVariant?.currency || fallbackCurrency || "USD",
+    currentPrice: rawVariant?.currentPrice ?? null,
+    sourceLabel: rawVariant?.sourceLabel || fallbackSourceLabel,
+    metrics: rawVariant?.metrics || {},
+    updatedAt: rawVariant?.updatedAt || null,
+  };
+}
+
+function mapPriceChartingSearchResultToCustomSummary(result: {
+  id: string;
+  sourceUrl: string;
+  title: string;
+  setName: string;
+  thumbnail: string;
+  currentPrice: number | null;
+}): CustomCollectionSummary {
+  const priceVariants =
+    result.currentPrice != null
+      ? [
+          {
+            key: "raw",
+            label: "Raw",
+            currency: "USD",
+            currentPrice: result.currentPrice,
+            sourceLabel: "PriceCharting Ungraded",
+            updatedAt: null,
+            metrics: {},
+          },
+        ]
+      : [];
+  const pricing = buildCustomPricing(priceVariants, "PriceCharting Ungraded", "USD");
+
+  return {
+    kind: "custom",
+    id: result.id,
+    title: result.title,
+    cardName: result.title,
+    subtitle: normalizeDisplayText(result.setName) || "PriceCharting collectible",
+    source: "custom",
+    image: result.thumbnail,
+    thumbnail: result.thumbnail,
+    setName: result.setName,
+    rarity: "",
+    number: "",
+    artist: "",
+    hp: null,
+    types: [],
+    supertype: "Collectible",
+    subtypes: [],
+    flavorText: "",
+    legalities: {},
+    regulationMark: "",
+    abilities: [],
+    attacks: [],
+    weaknesses: [],
+    resistances: [],
+    retreatCost: [],
+    evolvesFrom: null,
+    evolvesTo: [],
+    rules: [],
+    nationalPokedexNumbers: [],
+    pricing,
+    priceVariants,
+    historySeries: [],
+    marketSourceUrl: result.sourceUrl,
+    ownership: null,
+    ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, null),
+    history: [],
+  };
+}
+
+function mapPriceChartingCollectibleToCustomSummary(
+  detail: {
+    id: string;
+    sourceUrl: string;
+    title: string;
+    game: string;
+    category: string;
+    series: string;
+    itemNumber: string;
+    description: string;
+    image: string;
+    thumbnail: string;
+    setName: string;
+    priceVariants: PokemonPriceVariant[];
+    historySeries: PokemonPriceHistorySeries[];
+  },
+  ownership: OwnedCollectionEntry | null,
+): CustomCollectionSummary {
+  const pricing = buildCustomPricing(detail.priceVariants, "PriceCharting", "USD");
+  const subtitle =
+    buildCustomCollectibleSubtitle({
+      game: detail.game,
+      category: detail.category,
+      series: detail.series,
+      itemNumber: detail.itemNumber,
+    }) || normalizeDisplayText(detail.setName) || "PriceCharting collectible";
+
+  return {
+    kind: "custom",
+    id: detail.id,
+    title: normalizeDisplayText(ownership?.label) || detail.title,
+    cardName: detail.title,
+    subtitle,
+    source: "custom",
+    game: detail.game,
+    category: detail.category,
+    series: detail.series,
+    itemNumber: detail.itemNumber,
+    image: detail.image,
+    thumbnail: detail.thumbnail || detail.image,
+    setName: detail.setName,
+    rarity: detail.category || "",
+    number: detail.itemNumber || "",
+    artist: "",
+    hp: null,
+    types: [],
+    supertype: detail.category || detail.game || "Collectible",
+    subtypes: [],
+    flavorText: detail.description || "",
+    legalities: {},
+    regulationMark: "",
+    abilities: [],
+    attacks: [],
+    weaknesses: [],
+    resistances: [],
+    retreatCost: [],
+    evolvesFrom: null,
+    evolvesTo: [],
+    rules: [],
+    nationalPokedexNumbers: [],
+    pricing,
+    priceVariants: detail.priceVariants,
+    historySeries: detail.historySeries,
+    marketSourceUrl: detail.sourceUrl,
+    ownership,
+    ownershipMetrics: computeOwnershipMetrics(pricing.currentPrice, ownership),
+    history: buildCustomHistoryFromSeries(detail.priceVariants, detail.historySeries),
+  };
+}
+
 function mapCustomCollectionSummary(entry: CollectionCardRecord, fallbackCurrency: string): CustomCollectionSummary {
   const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
   const currency = entry.currency || fallbackCurrency || "USD";
@@ -647,6 +819,29 @@ export async function searchPokemonCards(env: Env, input: string): Promise<Pokem
   return summaries;
 }
 
+export async function searchCollectibleCards(env: Env, input: string): Promise<CollectionDisplayCard[]> {
+  const [pokemonCards, priceChartingResults] = await Promise.all([
+    searchPokemonCards(env, input).catch((error) => {
+      console.error("Pokemon collectible search failed.", error);
+      return [];
+    }),
+    searchPriceChartingProducts(env, input, 6).catch((error) => {
+      console.error("PriceCharting collectible search failed.", error);
+      return [];
+    }),
+  ]);
+
+  return [
+    ...pokemonCards.slice(0, 8),
+    ...priceChartingResults.map((result) => mapPriceChartingSearchResultToCustomSummary(result)),
+  ];
+}
+
+export async function searchPriceChartingCollectibles(env: Env, input: string): Promise<CustomCollectionSummary[]> {
+  const priceChartingResults = await searchPriceChartingProducts(env, input, 12);
+  return priceChartingResults.map((result) => mapPriceChartingSearchResultToCustomSummary(result));
+}
+
 async function fetchPokemonCard(env: Env, cardId: string): Promise<PokemonCard> {
   const payload = await fetchPokemonApi<PokemonApiResponse<PokemonCard>>(env, `/cards/${cardId}`, {
     select: CARD_SELECT_FIELDS,
@@ -717,6 +912,20 @@ export async function getPokemonCardDetail(
   };
 }
 
+export async function getPriceChartingCollectibleDetail(
+  env: Env,
+  itemId: string,
+  ownership: OwnedCollectionEntry | null,
+): Promise<CustomCollectionSummary> {
+  const detail = await fetchPriceChartingCollectible(env, itemId);
+
+  if (!detail) {
+    throw new Error("Collectible detail is unavailable.");
+  }
+
+  return mapPriceChartingCollectibleToCustomSummary(detail, ownership);
+}
+
 export async function refreshTrackedPokemonCollection(env: Env, trackedEntries: OwnedCollectionEntry[]): Promise<void> {
   const uniqueEntries = new Map<string, OwnedCollectionEntry>();
 
@@ -745,10 +954,18 @@ export async function refreshTrackedPokemonCollection(env: Env, trackedEntries: 
 
 export async function getStoredCollectionCards(env: Env): Promise<CollectionDisplayCard[]> {
   const storedCards = await listCollectionCards(env.PRICING_DB);
+  const fallbackCurrency = getOwnedCollection().currency ?? "USD";
   const results = await Promise.allSettled(
     storedCards.map((entry) => {
+      if (entry.source === "custom" && isPriceChartingCollectionId(entry.cardId)) {
+        return getPriceChartingCollectibleDetail(env, entry.cardId || "", entry as CollectionCardRecord).catch((error) => {
+          console.error("Falling back to stored PriceCharting collectible snapshot.", error);
+          return mapCustomCollectionSummary(entry, fallbackCurrency);
+        });
+      }
+
       if (entry.source === "custom") {
-        return Promise.resolve(mapCustomCollectionSummary(entry, getOwnedCollection().currency ?? "USD"));
+        return Promise.resolve(mapCustomCollectionSummary(entry, fallbackCurrency));
       }
 
       return getPokemonCardDetail(env, entry.cardId || "", entry as CollectionCardRecord, false);

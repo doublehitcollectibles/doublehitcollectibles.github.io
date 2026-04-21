@@ -14,10 +14,13 @@ import { getOwnedCollection, getTrackedPokemonEntries } from "./lib/ownedCollect
 import { normalizeCardQuery } from "./lib/query";
 import { json } from "./lib/response";
 import {
+  getPriceChartingCollectibleDetail,
   getPokemonCardDetail,
+  searchCollectibleCards,
+  searchPokemonCards,
+  searchPriceChartingCollectibles,
   getStoredCollectionCards,
   refreshTrackedPokemonCollection,
-  searchPokemonCards,
 } from "./lib/pokemonTcg";
 import { PricingLock } from "./durableObjects/PricingLock";
 import { refreshPricingJob } from "./pipeline/refresh";
@@ -415,12 +418,48 @@ async function handlePokemonCardSearch(request: Request, env: Env): Promise<Resp
   return json({ cards }, { headers: corsHeaders() });
 }
 
+async function handleCollectibleSearch(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const query = url.searchParams.get("q") ?? "";
+
+  if (!query.trim()) {
+    return json({ cards: [] }, { headers: corsHeaders() });
+  }
+
+  const cards = await searchCollectibleCards(env, query);
+  return json({ cards }, { headers: corsHeaders() });
+}
+
+async function handlePriceChartingSearch(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const query = url.searchParams.get("q") ?? "";
+
+  if (!query.trim()) {
+    return json({ cards: [] }, { headers: corsHeaders() });
+  }
+
+  const results = await searchPriceChartingCollectibles(env, query);
+  return json({ cards: results }, { headers: corsHeaders() });
+}
+
 async function handlePokemonCardDetail(request: Request, env: Env, cardId: string): Promise<Response> {
   const url = new URL(request.url);
   const priceType = url.searchParams.get("priceType") ?? undefined;
   const forceRefresh = url.searchParams.get("refresh") === "1";
   const ownership = priceType ? { cardId, priceType } : { cardId };
   const card = await getPokemonCardDetail(env, cardId, ownership, forceRefresh);
+  return json({ card }, { headers: corsHeaders() });
+}
+
+async function handlePriceChartingItemDetail(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const itemId = url.searchParams.get("id") ?? "";
+
+  if (!itemId.trim()) {
+    return json({ error: "Missing id parameter." }, { status: 400, headers: corsHeaders() });
+  }
+
+  const card = await getPriceChartingCollectibleDetail(env, itemId, null);
   return json({ card }, { headers: corsHeaders() });
 }
 
@@ -502,6 +541,18 @@ const worker: ExportedHandler<Env, PricingJob> = {
 
     if (request.method === "GET" && url.pathname === "/api/pokemon/cards/search") {
       return handlePokemonCardSearch(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/collectibles/search") {
+      return handleCollectibleSearch(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/pricecharting/search") {
+      return handlePriceChartingSearch(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/pricecharting/item") {
+      return handlePriceChartingItemDetail(request, env);
     }
 
     if (request.method === "GET" && pathParts[0] === "api" && pathParts[1] === "pokemon" && pathParts[2] === "cards" && pathParts[3]) {

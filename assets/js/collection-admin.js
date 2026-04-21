@@ -53,6 +53,13 @@
   const SEARCH_RESULTS_PER_PAGE = 6;
   const SEARCH_PAGE_BUTTON_WINDOW = 5;
 
+  function isPriceChartingCardRecord(card) {
+    return (
+      card?.kind === "custom" &&
+      /^pricecharting:/i.test(String(card?.id || card?.cardId || ""))
+    );
+  }
+
   function normalizeEntrySource(value) {
     return String(value || "").trim().toLowerCase() === "custom" ? "custom" : "api";
   }
@@ -340,7 +347,7 @@
 
   function getSelectionPrompt() {
     return state.entryMode === "custom"
-      ? "Manual collectible mode is active. Fill in the item details to preview sealed product or other games."
+      ? "Search PriceCharting for sealed product or other TCG items, or fill in the fields manually."
       : "Choose a card from the search results to begin.";
   }
 
@@ -406,6 +413,17 @@
     `;
   }
 
+  async function fetchPriceChartingCard(cardId) {
+    const payload = await apiJson(`/api/pricecharting/item?id=${encodeURIComponent(cardId)}`);
+    const card = payload?.card;
+
+    if (!card) {
+      throw new Error("Collectible detail unavailable.");
+    }
+
+    return card;
+  }
+
   function setEntryMode(mode, options) {
     const nextMode = normalizeEntrySource(mode);
     const preserveValues = Boolean(options?.preserveValues);
@@ -419,13 +437,13 @@
     });
 
     if (elements.searchTitle) {
-      elements.searchTitle.textContent = nextMode === "custom" ? "Manual Collectible Entry" : "Search Pokemon Cards";
+      elements.searchTitle.textContent = nextMode === "custom" ? "Search Sealed + Other Games" : "Search Pokemon Cards";
     }
 
     if (elements.searchCopy) {
       elements.searchCopy.textContent =
         nextMode === "custom"
-          ? "Manual mode lets you add sealed product, Riftbound, and other collectibles without a Pokemon API lookup."
+          ? "Search PriceCharting for sealed product, Riftbound, and other TCG collectibles, then attach your ownership details before saving them."
           : "Find a Pokemon card, then attach ownership details before saving it to your collection.";
     }
 
@@ -445,12 +463,17 @@
         nextMode === "custom" ? "Required item name, like Riftbound Booster Box" : "Optional custom display name";
     }
 
+    if (elements.searchForm?.elements?.query) {
+      elements.searchForm.elements.query.placeholder =
+        nextMode === "custom" ? "Search sealed product or another TCG like Riftbound Origins" : "Search a card like Mewtwo 281";
+    }
+
     const customMode = nextMode === "custom";
-    elements.searchForm.hidden = customMode;
+    elements.searchForm.hidden = false;
     elements.customHelper.hidden = !customMode;
-    elements.searchFeedback.hidden = customMode;
-    elements.searchResults.hidden = customMode;
-    elements.searchPagination.hidden = customMode || !state.searchResults.length;
+    elements.searchFeedback.hidden = false;
+    elements.searchResults.hidden = false;
+    elements.searchPagination.hidden = !state.searchResults.length;
     elements.pokemonOnlyFields.forEach((field) => {
       field.hidden = customMode;
     });
@@ -466,6 +489,8 @@
 
     if (!customMode && !preserveValues) {
       elements.searchFeedback.textContent = "Search for a card to start building your collection.";
+    } else if (customMode && !preserveValues) {
+      elements.searchFeedback.textContent = "Search PriceCharting for sealed product or another TCG collectible.";
     }
 
     updateSubmitLabel();
@@ -522,7 +547,44 @@
     renderSelection();
   }
 
-  function beginCreateFlow(card) {
+  function applyPriceChartingCreateFlow(card) {
+    setEntryMode("custom", { preserveValues: true });
+    state.selectedCard = card;
+    elements.cardForm.elements.source.value = "custom";
+    elements.cardForm.elements.entryId.value = "";
+    elements.cardForm.elements.cardId.value = card.id;
+    elements.cardForm.elements.label.value = card.cardName || card.title || "";
+    elements.cardForm.elements.quantity.value = "1";
+    elements.cardForm.elements.purchasePrice.value = "";
+    elements.cardForm.elements.purchaseDate.value = "";
+    elements.cardForm.elements.priceType.value = "";
+    elements.cardForm.elements.condition.value = "";
+    elements.cardForm.elements.notes.value = "";
+    if (elements.cardForm.elements.game) {
+      elements.cardForm.elements.game.value = card.game || "";
+      elements.cardForm.elements.category.value = card.category || card.supertype || "";
+      elements.cardForm.elements.series.value = card.series || card.setName || "";
+      elements.cardForm.elements.variant.value = card.variant || "";
+      elements.cardForm.elements.itemNumber.value = card.itemNumber || card.number || "";
+      elements.cardForm.elements.image.value = card.image || card.thumbnail || "";
+      elements.cardForm.elements.currentPrice.value = card.pricing?.currentPrice ?? "";
+      elements.cardForm.elements.priceSource.value = card.pricing?.sourceLabel || "PriceCharting";
+      elements.cardForm.elements.description.value = card.flavorText || "";
+      elements.cardForm.elements.artist.value = card.artist || "";
+      elements.cardForm.elements.currency.value = card.pricing?.currency || "USD";
+    }
+    state.editingEntryId = null;
+    updateSubmitLabel();
+    renderSelection();
+  }
+
+  async function beginCreateFlow(card) {
+    if (isPriceChartingCardRecord(card)) {
+      const detailedCard = card.historySeries?.length ? card : await fetchPriceChartingCard(card.id);
+      applyPriceChartingCreateFlow(detailedCard);
+      return;
+    }
+
     setEntryMode("api", { preserveValues: true });
     state.selectedCard = card;
     elements.cardForm.elements.source.value = "api";
@@ -654,9 +716,9 @@
             </div>
             <div class="collection-card-content">
               <h3>${escapeHtml(card.title)}</h3>
-              <p class="collection-card-copy">${escapeHtml(card.subtitle || "Pokemon card")}</p>
+              <p class="collection-card-copy">${escapeHtml(card.subtitle || (state.entryMode === "custom" ? "PriceCharting collectible" : "Pokemon card"))}</p>
               <div class="collection-card-price">${formatCurrency(card.pricing?.currentPrice, card.pricing?.currency)}</div>
-              <div class="collection-movement">${escapeHtml(card.pricing?.sourceLabel || "Pokemon TCG API")}</div>
+              <div class="collection-movement">${escapeHtml(card.pricing?.sourceLabel || (state.entryMode === "custom" ? "PriceCharting" : "Pokemon TCG API"))}</div>
               <div class="collection-admin-card-actions">
                 <button type="button" class="collection-admin-secondary" data-admin-pick-card="${escapeHtml(card.id)}">
                   Use This Card
@@ -675,7 +737,9 @@
 
         if (card) {
           state.cardLookup[detailKey(card.id, card.pricing?.priceType)] = card;
-          beginCreateFlow(card);
+          beginCreateFlow(card).catch((error) => {
+            renderStatus(error instanceof Error ? error.message : "Failed to load collectible details.", "error");
+          });
         }
       });
     });
@@ -708,6 +772,11 @@
         const currentCurrency = source === "custom" ? entry.currency : lookup?.pricing?.currency;
         const purchaseCurrency = source === "custom" ? entry.currency || "USD" : "USD";
         const sourceLabel = source === "custom" ? entry.priceSource || "Manual entry" : entry.priceType || "Auto Detect";
+        const sourceBadge = source === "custom"
+          ? /^pricecharting:/i.test(String(entry.cardId || ""))
+            ? "PriceCharting"
+            : "Manual"
+          : "Pokemon API";
 
         return `
           <article class="collection-admin-entry">
@@ -717,7 +786,7 @@
                 <h3>${escapeHtml(title)}</h3>
                 <p>${escapeHtml(subtitle)}</p>
                 <div class="collection-admin-entry-meta">
-                  <span>${escapeHtml(source === "custom" ? "Manual" : "Pokemon API")}</span>
+                  <span>${escapeHtml(sourceBadge)}</span>
                   <span>Qty ${escapeHtml(String(entry.quantity || 1))}</span>
                   <span>Cost ${formatCurrency(entry.purchasePrice, purchaseCurrency)}</span>
                   <span>Market ${formatCurrency(currentPrice, currentCurrency || "USD")}</span>
@@ -799,25 +868,31 @@
   }
 
   async function searchCards(query) {
-    if (state.entryMode === "custom") {
-      return;
-    }
-
     if (!query.trim()) {
       state.searchResults = [];
       state.searchPage = 1;
-      elements.searchFeedback.textContent = "Enter a card name or card number to search.";
+      elements.searchFeedback.textContent = state.entryMode === "custom"
+        ? "Enter a sealed product or other TCG search."
+        : "Enter a card name or card number to search.";
       renderSearchResults();
       return;
     }
 
-    elements.searchFeedback.textContent = "Searching Pokemon TCG API...";
-    const payload = await apiJson(`/api/pokemon/cards/search?q=${encodeURIComponent(query)}`);
+    elements.searchFeedback.textContent = state.entryMode === "custom"
+      ? "Searching PriceCharting..."
+      : "Searching Pokemon TCG API...";
+    const payload = await apiJson(
+      state.entryMode === "custom"
+        ? `/api/pricecharting/search?q=${encodeURIComponent(query)}`
+        : `/api/pokemon/cards/search?q=${encodeURIComponent(query)}`,
+    );
     state.searchResults = Array.isArray(payload?.cards) ? payload.cards : [];
     state.searchPage = 1;
 
     if (!state.searchResults.length) {
-      elements.searchFeedback.textContent = "No results found. Try a different card name or number.";
+      elements.searchFeedback.textContent = state.entryMode === "custom"
+        ? "No PriceCharting collectibles found. Try a set name, product name, or other TCG search."
+        : "No results found. Try a different card name or number.";
       renderSearchResults();
       return;
     }
@@ -826,6 +901,26 @@
   }
 
   async function editEntry(entry) {
+    if (normalizeEntrySource(entry.source) === "custom" && /^pricecharting:/i.test(String(entry.cardId || ""))) {
+      const card = await fetchPriceChartingCard(entry.cardId || "");
+      state.selectedCard = card;
+      populateFormFromEntry({
+        ...entry,
+        label: entry.label || card.cardName || card.title,
+        game: entry.game || card.game,
+        category: entry.category || card.category,
+        series: entry.series || card.series,
+        itemNumber: entry.itemNumber || card.itemNumber,
+        image: entry.image || card.image || card.thumbnail,
+        currentPrice: card.pricing?.currentPrice ?? entry.currentPrice,
+        priceSource: card.pricing?.sourceLabel || entry.priceSource,
+        description: entry.description || card.flavorText,
+        currency: entry.currency || card.pricing?.currency || "USD",
+      });
+      renderStatus(`Editing ${entry.label || card.cardName || entry.cardId}.`, "worker");
+      return;
+    }
+
     if (normalizeEntrySource(entry.source) === "custom") {
       state.selectedCard = null;
       populateFormFromEntry(entry);
@@ -1029,15 +1124,17 @@
       button.addEventListener("click", () => {
         const mode = button.getAttribute("data-admin-mode") || "api";
         state.selectedCard = null;
+        state.searchResults = [];
+        state.searchPage = 1;
         setEntryMode(mode, { preserveValues: true });
-
-        if (normalizeEntrySource(mode) === "api") {
-          elements.searchFeedback.textContent = "Search for a card to start building your collection.";
-        }
+        elements.searchFeedback.textContent = normalizeEntrySource(mode) === "custom"
+          ? "Search PriceCharting for sealed product or another TCG collectible."
+          : "Search for a card to start building your collection.";
+        renderSearchResults();
 
         renderStatus(
           normalizeEntrySource(mode) === "custom"
-            ? "Manual collectible mode is ready for sealed product and other TCG entries."
+            ? "PriceCharting collectible mode is ready for sealed product and other TCG entries."
             : "Pokemon card search mode is ready.",
           "info",
         );
