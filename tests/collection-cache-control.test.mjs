@@ -7,12 +7,12 @@ function readFile(relativePath) {
   return fs.readFileSync(path.resolve(relativePath), "utf8");
 }
 
-test("collection client fetches worker data with no-store caching disabled", () => {
+test("collection client fetches worker data with no-store caching disabled without custom request headers", () => {
   const source = readFile("assets/js/collection.js");
 
   assert.match(source, /async function fetchJson\(url\)\s*\{\s*const response = await fetch\(url,\s*\{\s*cache:\s*"no-store"/s);
-  assert.match(source, /"cache-control":\s*"no-cache"/);
-  assert.match(source, /pragma:\s*"no-cache"/);
+  assert.doesNotMatch(source, /"cache-control":\s*"no-cache"/);
+  assert.doesNotMatch(source, /pragma:\s*"no-cache"/);
 });
 
 test("worker json responses send no-store cache headers", () => {

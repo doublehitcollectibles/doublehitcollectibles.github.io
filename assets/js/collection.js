@@ -1133,10 +1133,6 @@
   async function fetchJson(url) {
     const response = await fetch(url, {
       cache: "no-store",
-      headers: {
-        "cache-control": "no-cache",
-        pragma: "no-cache",
-      },
     });
 
     if (!response.ok) {
