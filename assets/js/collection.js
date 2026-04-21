@@ -37,9 +37,11 @@
     inlineDetailCardId: null,
     selectionRequestId: 0,
     sourceMode: apiBase ? "worker" : "fallback",
+    ownedCardRefreshRunId: 0,
   };
 
   let resizeTimer = 0;
+  const OWNED_CARD_REFRESH_DELAY_MS = 260;
 
   const CARD_SELECT_FIELDS = [
     "id",
@@ -1250,7 +1252,11 @@
         }
 
         if (selected) {
-          selectCard(selected, { inlineTarget: targetKey }).catch((error) => {
+          selectCard(selected, {
+            inlineTarget: targetKey,
+            refreshLive: targetKey !== "owned",
+            forceRefresh: targetKey !== "owned",
+          }).catch((error) => {
             renderStatus(error instanceof Error ? error.message : "Unable to load card details.", "error");
           });
         }
@@ -1419,11 +1425,116 @@
     state.searchResults = state.searchResults.map(replaceCard);
   }
 
+  function buildWorkerStatusMessage(options = {}) {
+    const total = Number(options.total || 0);
+    const completed = Number(options.completed || 0);
+    const failed = Number(options.failed || 0);
+
+    if (total > 0 && completed < total) {
+      return `Worker-backed mode active. Refreshing tracked cards ${completed}/${total} in staggered updates...`;
+    }
+
+    if (total > 0 && failed > 0) {
+      return `Worker-backed mode active. Refreshed ${completed}/${total} tracked cards. ${failed} card${failed === 1 ? "" : "s"} kept cached data.`;
+    }
+
+    if (total > 0) {
+      return `Worker-backed mode active. Refreshed all ${total} tracked cards with staggered updates.`;
+    }
+
+    return "Worker-backed mode active. Pokemon TCG market pricing is primary, with PriceCharting filling PSA 10 and missing market gaps.";
+  }
+
   function buildDetailRefreshWarning(card, error) {
     const detailType = isPriceChartingCardRecord(card) ? "collectible" : "card";
     const detailError = error instanceof Error && error.message ? ` ${error.message}` : "";
 
     return `Live ${detailType} detail refresh is temporarily unavailable. Showing the cached tracked collection data instead.${detailError}`;
+  }
+
+  function delay(ms) {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+  }
+
+  async function fetchLiveCardDetail(card, options = {}) {
+    if (!apiBase || options.refreshLive === false) {
+      return normalizeCollectionCardRecord(card);
+    }
+
+    if (card.kind === "api") {
+      return fetchWorkerCard(card.id, card.ownership, options.forceRefresh !== false);
+    }
+
+    if (isPriceChartingCardRecord(card)) {
+      return fetchWorkerCustomCard(card.id, card.ownership);
+    }
+
+    return normalizeCollectionCardRecord(card);
+  }
+
+  function applyOwnedCardRefresh(updatedCard) {
+    syncCardAcrossCollections(updatedCard);
+    renderSummary(state.ownedCards);
+    renderAllCardGrids();
+
+    if (state.selectedCard?.id === updatedCard.id) {
+      state.selectedCard = updatedCard;
+
+      if (state.inlineDetailTarget === "owned") {
+        state.inlineDetailCardId = updatedCard.id;
+      }
+
+      renderDetail(updatedCard);
+    }
+  }
+
+  async function refreshOwnedCardsInBackground(cards) {
+    if (!apiBase || state.sourceMode !== "worker" || !Array.isArray(cards) || !cards.length) {
+      return;
+    }
+
+    const runId = ++state.ownedCardRefreshRunId;
+    const total = cards.length;
+    let completed = 0;
+    let failed = 0;
+
+    renderStatus(buildWorkerStatusMessage({ total, completed, failed }), "worker");
+
+    for (const card of cards) {
+      if (runId !== state.ownedCardRefreshRunId) {
+        return;
+      }
+
+      try {
+        const updatedCard = await fetchLiveCardDetail(card, {
+          forceRefresh: true,
+          refreshLive: true,
+        });
+
+        if (runId !== state.ownedCardRefreshRunId) {
+          return;
+        }
+
+        applyOwnedCardRefresh(updatedCard);
+      } catch (error) {
+        failed += 1;
+        console.error("Staggered collection card refresh failed.", error);
+      }
+
+      completed += 1;
+
+      if (runId !== state.ownedCardRefreshRunId) {
+        return;
+      }
+
+      renderStatus(buildWorkerStatusMessage({ total, completed, failed }), failed > 0 ? "error" : "worker");
+
+      if (completed < total) {
+        await delay(OWNED_CARD_REFRESH_DELAY_MS);
+      }
+    }
   }
 
   async function selectCard(card, options = {}) {
@@ -1442,11 +1553,10 @@
     let selectedCard = card;
 
     try {
-      if (apiBase && card.kind === "api") {
-        selectedCard = await fetchWorkerCard(card.id, card.ownership, true);
-      } else if (apiBase && isPriceChartingCardRecord(card)) {
-        selectedCard = await fetchWorkerCustomCard(card.id, card.ownership);
-      }
+      selectedCard = await fetchLiveCardDetail(card, {
+        forceRefresh: options.forceRefresh !== false,
+        refreshLive: options.refreshLive !== false,
+      });
     } catch (error) {
       selectedCard = normalizeCollectionCardRecord(card);
 
@@ -1493,11 +1603,24 @@
     renderStatus(
       warning ||
         (mode === "worker"
-          ? "Worker-backed mode active. Pokemon TCG market pricing is primary, with PriceCharting filling PSA 10 and missing market gaps."
+          ? buildWorkerStatusMessage()
           : "Direct Pokemon TCG API fallback mode active. Configure the worker URL to unlock server-side history and website-managed cards."),
       warning ? "error" : mode === "worker" ? "worker" : "fallback",
     );
-    await selectCard(state.ownedCards[0]);
+    await selectCard(state.ownedCards[0], {
+      refreshLive: false,
+      forceRefresh: false,
+    });
+
+    if (mode === "worker") {
+      refreshOwnedCardsInBackground(state.ownedCards.slice()).catch((error) => {
+        console.error("Staggered tracked collection refresh stopped early.", error);
+        renderStatus(
+          "Worker-backed mode active, but the staggered tracked card refresh stopped early. Showing cached tracked collection data where needed.",
+          "error",
+        );
+      });
+    }
   }
 
   async function searchCards(query) {
