@@ -130,6 +130,35 @@
     return normalizeOwnershipPriceVariant(value) === "psa10" ? "PSA 10" : "Raw";
   }
 
+  function buildOwnershipDisplayTitle(title, ownership) {
+    const normalizedTitle = normalizeDisplayText(title);
+    const baseTitle = normalizedTitle.replace(/\s+PSA\s*10$/i, "").trim() || normalizedTitle;
+
+    if (!baseTitle) {
+      return "";
+    }
+
+    return normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant) === "psa10"
+      ? `${baseTitle} PSA 10`
+      : baseTitle;
+  }
+
+  function formatOwnershipCostBasisLabel(ownershipMetrics, ownership, options) {
+    const comparisonLabel =
+      normalizeDisplayText(ownershipMetrics?.comparisonPriceLabel) ||
+      formatOwnershipPriceVariantLabel(ownership?.ownershipPriceVariant);
+
+    if (options?.compact) {
+      return `${comparisonLabel.replace(/\s+/g, "")} Basis`;
+    }
+
+    if (options?.titleCase) {
+      return `${comparisonLabel} Cost Basis`;
+    }
+
+    return `${comparisonLabel} cost basis`;
+  }
+
   function buildCollectionSubtitle(card) {
     const subtitle = normalizeDisplayText(card?.subtitle);
 
@@ -414,6 +443,7 @@
     const pricing = selectPrice(card, ownership?.priceType);
     const setName = card?.set?.name || "Unknown Set";
     const displayLabel = normalizeDisplayText(ownership?.label);
+    const displayTitle = buildOwnershipDisplayTitle(displayLabel || card.name, ownership);
     const rawVariant =
       pricing.currentPrice != null
         ? {
@@ -430,7 +460,7 @@
     return {
       kind: "api",
       id: card.id,
-      title: displayLabel || card.name,
+      title: displayTitle,
       cardName: card.name,
       subtitle: [setName, card?.rarity, card?.number].filter(Boolean).join(" | "),
       image: card?.images?.large || card?.images?.small || "",
@@ -474,12 +504,13 @@
   function mapCustomEntry(entry) {
     const currentPrice = entry.currentPrice != null ? Number(entry.currentPrice) : null;
     const displayLabel = normalizeDisplayText(entry.label);
+    const displayTitle = buildOwnershipDisplayTitle(displayLabel || "Custom Collection Item", entry);
     const subtitle = buildCustomCollectibleSubtitle(entry);
 
     return {
       kind: "custom",
       id: entry.id || entry.label || entry.cardId || `custom-${Math.random().toString(36).slice(2)}`,
-      title: displayLabel || "Custom Collection Item",
+      title: displayTitle,
       cardName: displayLabel || "Custom Collection Item",
       subtitle,
       image: entry.image || "",
@@ -911,13 +942,14 @@
   }
 
   function getCardDisplayTitle(card) {
-    return (
+    const baseTitle =
       normalizeDisplayText(card?.title) ||
       normalizeDisplayText(card?.cardName) ||
       normalizeDisplayText(card?.name) ||
       normalizeDisplayText(card?.id) ||
-      "Collection Item"
-    );
+      "Collection Item";
+
+    return buildOwnershipDisplayTitle(baseTitle, card?.ownership || card);
   }
 
   function normalizeCollectionCardRecord(card) {
@@ -942,6 +974,7 @@
   function renderDetail(card) {
     const displayTitle = getCardDisplayTitle(card);
     const ownership = card.ownershipMetrics || {};
+    const ownershipCostBasisLabel = formatOwnershipCostBasisLabel(ownership, card.ownership, { titleCase: true });
     const comparisonCopy = ownership.comparisonPriceLabel
       ? `Compared against ${ownership.comparisonPriceLabel} market`
       : card.pricing?.sourceLabel || "Unavailable";
@@ -988,9 +1021,9 @@
                   <p class="collection-detail-stat-copy">${escapeHtml(psa10Price?.sourceLabel || "Unavailable")}</p>
                 </article>
                 <article class="collection-detail-stat">
-                  <p class="collection-detail-stat-label">Cost Basis</p>
+                  <p class="collection-detail-stat-label">${escapeHtml(ownershipCostBasisLabel)}</p>
                   <p class="collection-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</p>
-                  <p class="collection-detail-stat-copy">Based on your logged purchase price and quantity</p>
+                  <p class="collection-detail-stat-copy">Based on your logged ${escapeHtml(ownership.comparisonPriceLabel || formatOwnershipPriceVariantLabel(card.ownership?.ownershipPriceVariant))} purchase price and quantity</p>
                 </article>
                 <article class="collection-detail-stat">
                   <p class="collection-detail-stat-label">Return</p>
@@ -1053,6 +1086,7 @@
       ownership.quantity ? `Qty ${ownership.quantity}` : null,
     ].filter(Boolean);
     const historyMarkup = buildHistoryChart(card, rawPrice?.currency || card.pricing?.currency, { compact: true });
+    const ownershipCostBasisLabel = formatOwnershipCostBasisLabel(ownership, card.ownership, { compact: true });
 
     return `
       <article
@@ -1085,7 +1119,7 @@
                 <span class="collection-inline-detail-stat-value">${formatCurrency(psa10Price?.currentPrice, psa10Price?.currency || card.pricing?.currency)}</span>
               </article>
               <article class="collection-inline-detail-stat">
-                <span class="collection-inline-detail-stat-label">Cost</span>
+                <span class="collection-inline-detail-stat-label">${escapeHtml(ownershipCostBasisLabel)}</span>
                 <span class="collection-inline-detail-stat-value">${formatCurrency(ownership.investedValue, card.pricing?.currency)}</span>
               </article>
               <article class="collection-inline-detail-stat">
@@ -1117,6 +1151,7 @@
         const displayTitle = getCardDisplayTitle(card);
         const displaySubtitle = buildCollectionSubtitle(card);
         const ownershipMetrics = card.ownershipMetrics || {};
+        const ownershipCostBasisLabel = formatOwnershipCostBasisLabel(ownershipMetrics, card.ownership);
         const deltaAmount = ownershipMetrics.deltaAmount;
         const deltaPercent = ownershipMetrics.deltaPercent;
         const hasMovement = typeof deltaAmount === "number" && typeof deltaPercent === "number";
@@ -1148,7 +1183,7 @@
 
         const movementMarkup = hasMovement
           ? `<div class="${directionClass}">
-              ${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)}) vs cost basis
+              ${deltaAmount >= 0 ? "+" : ""}${formatCurrency(deltaAmount, card.pricing?.currency)} (${formatPercent(deltaPercent)}) vs ${escapeHtml(ownershipCostBasisLabel)}
             </div>`
           : '<div class="collection-movement collection-movement--empty" aria-hidden="true">&nbsp;</div>';
 

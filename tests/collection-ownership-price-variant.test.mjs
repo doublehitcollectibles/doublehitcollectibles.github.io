@@ -83,6 +83,53 @@ test("ownership metrics compare against psa10 pricing when the entry is tracked 
   assert.equal(metrics.comparisonSourceLabel, "PriceCharting PSA 10");
 });
 
+test("frontend ownership helpers append graded titles and expose the explicit cost basis label", () => {
+  const source = readFile("assets/js/collection.js");
+  const helperBlock = extractBetween(source, "function normalizeDisplayText", "function getSeriesDelta");
+  const buildHelpers = new Function(
+    `${helperBlock}; return { buildOwnershipDisplayTitle, formatOwnershipCostBasisLabel, mapCardPayload };`,
+  );
+  const { buildOwnershipDisplayTitle, formatOwnershipCostBasisLabel, mapCardPayload } = buildHelpers();
+
+  assert.equal(buildOwnershipDisplayTitle("Shining Ho-Oh", { ownershipPriceVariant: "psa10" }), "Shining Ho-Oh PSA 10");
+  assert.equal(buildOwnershipDisplayTitle("Shining Ho-Oh PSA 10", { ownershipPriceVariant: "raw" }), "Shining Ho-Oh");
+  assert.equal(
+    formatOwnershipCostBasisLabel({ comparisonPriceLabel: "PSA 10" }, { ownershipPriceVariant: "raw" }),
+    "PSA 10 cost basis",
+  );
+  assert.equal(
+    formatOwnershipCostBasisLabel({ comparisonPriceLabel: "PSA 10" }, { ownershipPriceVariant: "raw" }, { titleCase: true }),
+    "PSA 10 Cost Basis",
+  );
+
+  const mappedCard = mapCardPayload(
+    {
+      id: "sm70",
+      name: "Shining Ho-Oh",
+      set: { name: "SM Black Star Promos" },
+      rarity: "Promo",
+      number: "SM70",
+      images: { small: "small.png", large: "large.png" },
+      tcgplayer: {
+        updatedAt: "2026-04-21T00:00:00.000Z",
+        prices: {
+          holofoil: {
+            market: 20.96,
+          },
+        },
+      },
+    },
+    {
+      quantity: 1,
+      purchasePrice: 350,
+      ownershipPriceVariant: "psa10",
+    },
+    [],
+  );
+
+  assert.equal(mappedCard.title, "Shining Ho-Oh PSA 10");
+});
+
 test("worker request parsing preserves the ownership price variant for stored collection cards", () => {
   const source = readFile("workers/pricing-service/src/index.ts");
   const helperBlock = extractBetween(source, "function normalizeEntrySource", "async function handleCollectionCardsGet");
@@ -106,4 +153,18 @@ test("worker request parsing preserves the ownership price variant for stored co
   assert.equal(entry.cardId, "sm70");
   assert.equal(entry.priceType, "holofoil");
   assert.equal(entry.ownershipPriceVariant, "psa10");
+});
+
+test("worker ownership title helper appends and removes the psa10 suffix consistently", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+  const helperBlock = extractBetween(source, "function normalizeOwnershipPriceVariant", "function resolveOwnershipComparisonVariant");
+  const moduleFactory = new Function(
+    "exports",
+    "module",
+    `${transpileModule(helperBlock)}; return { buildOwnershipDisplayTitle };`,
+  );
+  const { buildOwnershipDisplayTitle } = moduleFactory({}, { exports: {} });
+
+  assert.equal(buildOwnershipDisplayTitle("Shining Ho-Oh", { ownershipPriceVariant: "psa10" }), "Shining Ho-Oh PSA 10");
+  assert.equal(buildOwnershipDisplayTitle("Shining Ho-Oh PSA 10", { ownershipPriceVariant: "raw" }), "Shining Ho-Oh");
 });
