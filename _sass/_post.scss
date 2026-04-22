@@ -853,3 +853,217 @@ body.about-page {
     line-height: rem(28px) !important;
   }
 }
+
+body.welcome-post-page {
+  --collection-text-primary: #f6f2e8;
+  --collection-text-muted: rgba(246, 242, 232, 0.9);
+  --collection-text-soft: rgba(246, 242, 232, 0.82);
+  --collection-text-faint: rgba(246, 242, 232, 0.74);
+  --collection-text-label: rgba(255, 232, 156, 0.94);
+  background: url(../../assets/img/uploads/pokemon-hoenn-1.png) center top / cover fixed no-repeat;
+  background-color: #081220;
+  color: var(--collection-text-primary);
+}
+
+body.welcome-post-page .content {
+  padding-top: rem(112px);
+}
+
+body.welcome-post-page .welcome-post-page__post {
+  top: 0;
+  max-width: rem(1280px);
+  margin: 0 auto;
+  padding: 0 rem(24px) rem(80px);
+  gap: rem(20px);
+  align-items: start;
+}
+
+body.welcome-post-page .welcome-post-page__content,
+body.welcome-post-page .see-also,
+body.welcome-post-page .share,
+body.welcome-post-page .author,
+body.welcome-post-page .comments,
+body.welcome-post-page footer {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: rem(28px);
+  background:
+    radial-gradient(circle at top right, rgba(255, 214, 68, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(8, 16, 20, 0.72), rgba(8, 16, 20, 0.72));
+  box-shadow: 0 rem(24px) rem(60px) rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(rem(18px));
+}
+
+body.welcome-post-page .welcome-post-page__content {
+  padding: rem(28px) 0 rem(32px);
+}
+
+body.welcome-post-page .welcome-post-page__content p,
+body.welcome-post-page .welcome-post-page__content li,
+body.welcome-post-page .welcome-post-page__content h1,
+body.welcome-post-page .welcome-post-page__content h2,
+body.welcome-post-page .welcome-post-page__content h3,
+body.welcome-post-page .welcome-post-page__content h4,
+body.welcome-post-page .welcome-post-page__content h5,
+body.welcome-post-page .welcome-post-page__content h6 {
+  color: var(--collection-text-primary);
+}
+
+body.welcome-post-page .welcome-post-page__content p,
+body.welcome-post-page .welcome-post-page__content li {
+  color: var(--collection-text-muted);
+}
+
+body.welcome-post-page .welcome-post-page__content h1.post-title {
+  color: #fff4cf;
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  line-height: 0.96;
+  margin-top: 0;
+  margin-bottom: rem(14px);
+}
+
+body.welcome-post-page .welcome-post-page__content p.post-subtitle {
+  color: var(--collection-text-soft);
+  font-size: clamp(1.1rem, 2.3vw, 1.5rem);
+  line-height: 1.6;
+  margin-top: 0;
+  margin-bottom: rem(18px);
+}
+
+body.welcome-post-page .welcome-post-page__content p.post-info,
+body.welcome-post-page .welcome-post-page__content figcaption,
+body.welcome-post-page .welcome-post-page__content img + em {
+  color: var(--collection-text-faint);
+}
+
+body.welcome-post-page .welcome-post-page__content p.post-info svg {
+  fill: var(--collection-text-faint);
+}
+
+body.welcome-post-page .welcome-post-page__content img.post-cover {
+  border-radius: rem(22px);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body.welcome-post-page .welcome-post-page__content a {
+  color: #ffd84a;
+}
+
+body.welcome-post-page .welcome-post-page__content ul {
+  color: var(--collection-text-muted);
+}
+
+body.welcome-post-page .see-also {
+  padding: rem(20px);
+}
+
+body.welcome-post-page .see-also h2 {
+  color: #fff4cf;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  padding-top: 0;
+}
+
+body.welcome-post-page .see-also ul li a {
+  color: var(--collection-text-soft);
+}
+
+body.welcome-post-page .see-also ul li a:hover {
+  color: var(--collection-text-primary);
+}
+
+body.welcome-post-page .share,
+body.welcome-post-page .author,
+body.welcome-post-page .comments {
+  width: calc(100% - 48px);
+  max-width: rem(1280px);
+  margin: rem(24px) auto 0;
+  padding: rem(20px) rem(24px);
+}
+
+body.welcome-post-page .share {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.welcome-post-page .share h3,
+body.welcome-post-page .author .name a,
+body.welcome-post-page .comments h3 {
+  color: #fff4cf;
+}
+
+body.welcome-post-page .share svg,
+body.welcome-post-page .author svg {
+  fill: var(--collection-text-soft);
+}
+
+body.welcome-post-page .author .def,
+body.welcome-post-page .author .desc,
+body.welcome-post-page .comments {
+  color: var(--collection-text-soft);
+}
+
+body.welcome-post-page footer {
+  width: calc(100% - 48px);
+  max-width: rem(1280px);
+  padding: rem(20px) rem(24px);
+  margin-top: rem(24px);
+  margin-bottom: rem(80px);
+}
+
+body.welcome-post-page footer p,
+body.welcome-post-page footer a,
+body.welcome-post-page footer ul a,
+body.welcome-post-page footer .footer-credit a,
+body.welcome-post-page footer svg {
+  color: var(--collection-text-soft);
+  fill: var(--collection-text-soft);
+}
+
+body.welcome-post-page footer a:hover,
+body.welcome-post-page footer a:focus-visible {
+  color: var(--collection-text-primary);
+  fill: var(--collection-text-primary);
+}
+
+body.welcome-post-page .time-bar,
+body.welcome-post-page .recommendation {
+  background-color: rgba(8, 16, 20, 0.94);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(rem(10px));
+}
+
+body.welcome-post-page .time-bar .time-completed,
+body.welcome-post-page .time-bar .time-remaining,
+body.welcome-post-page .recommendation .message,
+body.welcome-post-page .recommendation .message button,
+body.welcome-post-page .recommendation .message svg {
+  color: var(--collection-text-primary);
+  fill: var(--collection-text-primary);
+}
+
+@media (max-width: 640px) {
+  body.welcome-post-page .content {
+    padding-top: rem(96px);
+  }
+
+  body.welcome-post-page .welcome-post-page__post {
+    padding: 0 rem(16px) rem(64px);
+  }
+
+  body.welcome-post-page .welcome-post-page__content,
+  body.welcome-post-page .see-also,
+  body.welcome-post-page .share,
+  body.welcome-post-page .author,
+  body.welcome-post-page .comments,
+  body.welcome-post-page footer {
+    border-radius: rem(22px);
+  }
+
+  body.welcome-post-page .share,
+  body.welcome-post-page .author,
+  body.welcome-post-page .comments,
+  body.welcome-post-page footer {
+    width: calc(100% - 32px);
+    padding: rem(16px);
+    margin-top: rem(16px);
+    margin-bottom: rem(64px);
+  }
+}
