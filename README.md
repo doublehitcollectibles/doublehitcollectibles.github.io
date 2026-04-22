@@ -1,133 +1,120 @@
 # Double Hit Collectibles
 
-Double Hit Collectibles is the Pokemon trading card brand and collection website of Braden Lee (`0x00C0DE`).
-
-This project is designed to present the collection in a polished, brand-forward format while documenting the long-term direction of the collection. The website combines visual identity, collection storytelling, and update-driven content to show that acquisitions are intentional, curated, and built with a clear purpose.
+Double Hit Collectibles is the public website and collection platform for Braden Lee (`0x00C0DE`).
 
 Live site: [doublehitcollectibles.github.io](https://doublehitcollectibles.github.io/)
 
-## Live Site Preview
+The project combines a branded Jekyll front end with a Cloudflare-backed collection and pricing service. The result is a site that can act as both a content home base and a live collectible portfolio for cards, graded cards, sealed product, and mixed TCG inventory.
 
-### Homepage
+## What The Website Offers
 
-![Double Hit Collectibles live homepage](assets/img/readme/live-home.png)
+The live site currently includes:
 
-### About Page
+- a branded homepage for posts, updates, and featured content
+- an About page styled to match the collection experience
+- a public collection page at `/collection/`
+- a secure admin workspace at `/manage-collection/`
+- a contact form flow
+- an RSS feed at `/feed.xml`
 
-![Double Hit Collectibles live about page](assets/img/readme/live-about.png)
+## Public Collection Experience
 
-## Project Overview
+The collection page is not just a static gallery. It is a live collection surface built around worker-backed data and PriceCharting-backed market information.
 
-Double Hit Collectibles is being developed as a professional home base for:
+Key features include:
 
-- collection updates and featured highlights
-- brand presentation and collector positioning
-- public-facing storytelling around the collection
-- future collection tracking and performance reporting
+- tracked collection summary cards for item count, cost basis, estimated value, and unrealized return
+- a tracked collection grid that supports duplicate ownership variants such as raw and PSA 10
+- inline detail panels that open beside the exact selected card
+- compact price-history charts inside the inline detail view
+- raw/ungraded and PSA 10 market boxes
+- explicit return comparisons against raw or PSA 10 cost basis
+- shared collectible search for users and admins
+- mixed collectible search results for:
+  - Pokemon singles
+  - variant cards such as metal and hyper rare results
+  - sealed Pokemon product
+  - other TCG collectibles such as Riftbound
 
-The current live site focuses on establishing the visual identity of the brand and creating a strong foundation for future collection content.
+The public page also supports progressive refresh behavior:
 
-## Current Website Experience
+- stored collection data renders first for speed
+- background refresh batches update tracked cards without overloading the Cloudflare worker
+- users can still click a specific card to force a fresh update for that item
 
-The site currently includes:
+## Admin Workspace
 
-- a branded homepage with featured post presentation
-- custom Pokemon-themed imagery and collection-focused visuals
-- an About page that introduces the brand and the purpose of the site
-- a Contact page and RSS feed for communication and updates
-- responsive navigation and GitHub Pages deployment
+The admin page is the browser-based collection management workspace for the live site.
 
-Today, the website functions primarily as a polished brand and content platform. Over time, it is intended to grow into a deeper collection showcase.
+It supports:
 
-## Brand Positioning
+- worker-backed sign-in using configured admin credentials
+- searching the same mixed collectible catalog used by the public collection explorer
+- adding, editing, and deleting collection entries
+- adding Pokemon cards, sealed product, and other TCG items
+- saving quantity, purchase price, purchase date, condition, notes, and display label
+- choosing whether a Pokemon card is tracked as `Raw` or `PSA 10`
+- preserving correct cost-basis and return math for raw vs graded ownership
+- storing custom mixed-collectible metadata such as game, category, series, variant, item number, image, and price source
 
-Double Hit Collectibles is intended to communicate more than ownership. The brand is meant to show discipline, curation, and long-term thinking in how the collection is built.
+## Pricing And Data Model
 
-The goal is to make it clear that the collection is not random inventory. Purchases are meant to reflect selectivity, quality standards, and a broader collecting strategy. That positioning helps build trust with collectors, customers, and collaborators who want to understand the reasoning behind the collection.
+The current collection stack uses multiple data sources, but the tracked collection pricing itself is now centered on PriceCharting.
 
-## Collection Roadmap
+Current behavior:
 
-The longer-term direction of the site is to expand beyond updates and visual branding into collection intelligence.
+- PriceCharting is used for tracked raw/ungraded and PSA 10 market pricing
+- PriceCharting search powers mixed collectible discovery for sealed product and other TCG items
+- Pokemon TCG API is still used for Pokemon card metadata and card-detail enrichment where relevant
+- Cloudflare D1 stores owned collection entries and persisted price payloads
+- stored payloads include history so repeat page loads do not need to refetch every detail immediately
+- periodic refreshes keep tracked cards updated over time
+- the public page can fall back to `assets/data/owned-cards.json` if the worker is unavailable
 
-Planned areas of growth include:
+## Cloudflare Worker Features
 
-- individual card or collection feature pages
-- acquisition notes and collecting rationale
-- showcase pages for standout items and milestones
-- collection organization by category, era, or priority
+The backend lives in [workers/pricing-service](workers/pricing-service) and powers the interactive parts of the site.
 
-## Market Value Tracking Direction
+Capabilities include:
 
-One of the main roadmap ideas is to introduce collection performance tracking that compares:
+- public collection routes
+- authenticated admin routes
+- Pokemon card search and detail routes
+- mixed collectible search routes
+- PriceCharting item-detail hydration
+- D1-backed collection storage
+- queue and scheduled refresh workflows
+- persistent pricing snapshots and payload storage
 
-- purchase price
-- current market value
-- unrealized gain or loss
-- percentage return over time
+Representative routes:
 
-That would allow the site to present the collection in a way that feels closer to a portfolio view, helping visitors understand how the collection is performing and how strategically it has been built.
-
-Collectr-style tracking remains a concept under evaluation. If that direction is pursued, it should be implemented only through a stable and permitted pricing source, export workflow, or API that is reliable and compatible with the provider's access model and terms.
-
-## Pokemon TCG API Integration
-
-The repository now includes a collection experience powered by the official Pokemon TCG API and a Cloudflare backend.
-
-That integration includes:
-
-- a collection page at `/collection/`
-- a secure manage page at `/manage-collection/`
-- website login backed by worker-configured credentials
-- Cloudflare D1 storage for owned-card records
-- direct API fallback for current card data
-- a Cloudflare Workers backend that can cache card detail and store price snapshots over time
-- a local JSON fallback at `assets/data/owned-cards.json` when the worker URL is not configured
-
-The collection page is documented in [docs/pokemon-collection.md](docs/pokemon-collection.md), and the worker backend is documented in [docs/pricing-service.md](docs/pricing-service.md).
-
-## Repository Purpose
-
-This repository powers the public website for Double Hit Collectibles and contains the content, layouts, styling, assets, and deployment configuration used by the live GitHub Pages site.
-
-## Tech Stack
-
-- Jekyll for static site generation
-- GitHub Pages for hosting
-- Sass for custom styling
-- JavaScript for interactive site behavior
-- GitHub Actions for deployment automation
-- Cloudflare Workers, D1, KV, Queues, and Durable Objects for the pricing backend
+- `GET /api/collection/cards`
+- `GET /api/pokemon/cards/search?q=...`
+- `GET /api/pokemon/cards/:id`
+- `GET /api/collectibles/search?q=...`
+- `GET /api/pricecharting/search?q=...`
+- `GET /api/pricecharting/item?id=...`
+- `POST /api/auth/login`
+- `GET /api/auth/session`
+- `GET /api/admin/collection/cards`
+- `POST /api/admin/collection/cards`
+- `PUT /api/admin/collection/cards/:id`
+- `DELETE /api/admin/collection/cards/:id`
 
 ## Repository Structure
 
-- `_posts/` contains website posts and featured content
-- `pages/` contains standalone pages such as About and Contact
-- `_layouts/` and `_includes/` contain the reusable page structure
-- `_sass/` contains the site's styling and component-level presentation
-- `assets/` contains compiled assets and image files used by the live site
-- `src/` contains source configuration and build inputs
-- `workers/pricing-service/` contains the Cloudflare pricing API, queue consumer, scheduler, and schema
-- `.github/workflows/pages.yml` contains the GitHub Pages deployment workflow
-
-## Pricing Backend
-
-The repository now includes a dedicated Cloudflare Workers collection and pricing service for the live site.
-
-That backend is designed to:
-
-- authenticate the site owner with a worker-managed username and password
-- search the Pokemon TCG API for cards to add to the collection
-- store collection entries in Cloudflare D1
-- return public collection cards for the `/collection/` page
-- store repeated price snapshots so history can be shown over time
-
-The first implementation lives in [workers/pricing-service/README.md](workers/pricing-service/README.md) with additional architecture notes in [docs/pricing-service.md](docs/pricing-service.md).
-
-The pricing pipeline is intentionally provider-oriented so Double Hit Collectibles can expand the collection experience over time without rebuilding the rest of the backend.
+- `_posts/` contains homepage/editorial content
+- `pages/` contains standalone site pages such as `about.md`, `collection.md`, and `manage-collection.md`
+- `_layouts/` and `_includes/` contain the Jekyll layout system
+- `_sass/` contains the site styling, including the collection/admin experience
+- `assets/js/` contains the browser-side collection and admin logic
+- `assets/data/owned-cards.json` contains the local fallback inventory source
+- `docs/` contains collection and worker architecture notes
+- `workers/pricing-service/` contains the Cloudflare worker, D1 migrations, scripts, and TypeScript source
 
 ## Local Development
 
-Install dependencies:
+Install the site dependencies:
 
 ```bash
 bundle install
@@ -140,32 +127,78 @@ Build the site:
 npm run build
 ```
 
-Run development tooling:
+Run the site in development mode:
 
 ```bash
 npm run dev
 ```
 
-If you want to serve the site directly with Jekyll:
+Serve the site directly with Jekyll if needed:
 
 ```bash
 bundle exec jekyll serve
 ```
 
-## Deployment
+## Worker Development
 
-The production site is deployed through GitHub Pages.
+Install worker dependencies:
 
-- pushes to `main` publish the live website
-- ongoing work can be developed on feature branches before being pushed to `main`
+```bash
+cd workers/pricing-service
+npm install
+```
 
-## Brand Ownership
+Type-check the worker:
 
-- Brand: `Double Hit Collectibles`
-- Owner: `Braden Lee`
-- Handle: `0x00C0DE`
-- Focus: `Pokemon trading cards`
+```bash
+npm run check
+```
+
+Run the worker locally:
+
+```bash
+npm run dev
+```
+
+Generate an admin password hash:
+
+```bash
+npm run hash-password -- "your-password"
+```
+
+## Configuration Notes
+
+To use the Cloudflare-backed collection workflow locally or in production:
+
+- deploy the worker in `workers/pricing-service`
+- configure the worker secrets and vars for admin auth and upstream access
+- apply the D1 migrations in `workers/pricing-service/migrations/`
+- set `pokemon_api_base_url` to the worker URL in:
+  - `_config.yml`
+  - `src/yml/site.yml`
+
+If `pokemon_api_base_url` is blank or unreachable, the public collection page falls back to the local JSON inventory file.
+
+## Related Docs
+
+- [docs/pokemon-collection.md](docs/pokemon-collection.md)
+- [docs/pricing-service.md](docs/pricing-service.md)
+- [workers/pricing-service/README.md](workers/pricing-service/README.md)
+
+## Tech Stack
+
+- Jekyll
+- Sass
+- JavaScript
+- GitHub Pages
+- Cloudflare Workers
+- Cloudflare D1
+- Cloudflare KV
+- Cloudflare Queues
+- Cloudflare Durable Objects
+- PriceCharting
+- Pokemon TCG API
 
 ## License
 
-See [LICENSE](LICENSE) for the current license used in this repository.
+See [LICENSE](LICENSE).
