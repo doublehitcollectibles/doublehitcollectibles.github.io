@@ -54,7 +54,6 @@ exclude: [
   'docs/',
   'vendor/',
   'LICENSE',
-  'CHANGELOG.md',
   'package.json',
   'package-lock.json',
   'src',

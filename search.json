@@ -1,3 +1,35 @@
 ---
-layout: search
+layout: null
 ---
+[
+  {% assign first_entry = true %}
+  {% for page in site.pages %}
+    {% assign page_title = page.title | default: "" | strip %}
+    {% if page_title != "" and page.url != '/404.html' and page.url != '/search.json' and page.url != '/robots.txt' and page.url != '/sitemap.xml' %}
+      {% capture page_tags %}{% if page.tags %}{{ page.tags | join: ', ' }}{% endif %}{% endcapture %}
+      {% capture page_categories %}{% if page.categories %}{{ page.categories | join: ', ' }}{% endif %}{% endcapture %}
+      {% unless first_entry %},{% endunless %}
+      {
+        "title": {{ page.title | jsonify }},
+        "tags": {{ page_tags | strip | jsonify }},
+        "categories": {{ page_categories | strip | jsonify }},
+        "url": {{ page.url | relative_url | jsonify }},
+        "date": {{ page.date | default: site.time | date: "%Y-%m-%d" | jsonify }}
+      }
+      {% assign first_entry = false %}
+    {% endif %}
+  {% endfor %}
+  {% for post in site.posts %}
+    {% capture post_tags %}{% if post.tags %}{{ post.tags | join: ', ' }}{% endif %}{% endcapture %}
+    {% capture post_categories %}{% if post.categories %}{{ post.categories | join: ', ' }}{% endif %}{% endcapture %}
+    {% unless first_entry %},{% endunless %}
+    {
+      "title": {{ post.title | jsonify }},
+      "tags": {{ post_tags | strip | jsonify }},
+      "categories": {{ post_categories | strip | jsonify }},
+      "url": {{ post.url | relative_url | jsonify }},
+      "date": {{ post.date | date: "%Y-%m-%d" | jsonify }}
+    }
+    {% assign first_entry = false %}
+  {% endfor %}
+]
