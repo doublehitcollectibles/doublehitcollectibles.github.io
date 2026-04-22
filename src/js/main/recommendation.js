@@ -3,8 +3,26 @@
 
     var recommendation = document.querySelector('.recommendation');
     var isVisible = false;
+    var showTimer = null;
 
     if (recommendation) {
+        function showRecommendation() {
+            recommendation.classList.add('is-visible');
+            isVisible = true;
+        }
+
+        function hideRecommendation() {
+            recommendation.classList.remove('is-visible');
+            isVisible = false;
+        }
+
+        function clearShowTimer() {
+            if (showTimer) {
+                clearTimeout(showTimer);
+                showTimer = null;
+            }
+        }
+
         // Back to top button
         var goBackToTop = recommendation.querySelector('.message button');
         goBackToTop.addEventListener('click', function () {
@@ -14,17 +32,20 @@
 
         // Hide
         document.addEventListener('stillReading', function (elem) {
+            clearShowTimer();
             if (isVisible) {
-                recommendation.style.bottom = '-100%';
-                isVisible = false;
+                hideRecommendation();
             }
         }, false);
 
         // Show
         document.addEventListener('finishedReading', function (elem) {
             if (!isVisible) {
-                recommendation.style.bottom = '0%';
-                isVisible = true;
+                clearShowTimer();
+                showTimer = setTimeout(function () {
+                    showRecommendation();
+                    showTimer = null;
+                }, 220);
             }
         }, false);
     }

@@ -4,6 +4,7 @@
     var post = document.querySelector('.post-content');
     var timeBar = document.querySelector('.time-bar');
     var shouldShow = true;
+    var hasFinishedReading = false;
 
     if (post && timeBar) {
         var lastScrollTop = 0;
@@ -16,6 +17,10 @@
         var timeRemaining = timeBar.querySelector('.time-remaining');
 
         timeBar.setAttribute('data-scroll-direction', currentDirection);
+
+        function setTimeBarVisibility(isVisible) {
+            timeBar.classList.toggle('is-visible', isVisible);
+        }
 
         function getViewportHeight() {
             var visualViewport = window.visualViewport;
@@ -65,13 +70,17 @@
         function updateTimeBar() {
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             var scrollDelta = scrollTop - lastScrollTop;
-            var maxScrollTop = Math.max(0, getDocumentScrollHeight() - getViewportHeight());
+            var viewportHeight = getViewportHeight();
+            var documentScrollHeight = getDocumentScrollHeight();
+            var maxScrollTop = Math.max(0, documentScrollHeight - viewportHeight);
             var totalSeconds = parseInt(timeBar.getAttribute('data-minutes'), 10) * 60;
             var percentage = 0;
             var completedVal = 0;
             var remainingVal = 100;
             var completedTime = 0;
             var remainingTime = totalSeconds;
+            var completionThreshold = Math.max(4, Math.ceil(viewportHeight * 0.01));
+            var isAtBottom = false;
 
             if (scrollDelta > directionThreshold) {
                 currentDirection = 'down';
@@ -82,14 +91,18 @@
             timeBar.setAttribute('data-scroll-direction', currentDirection);
 
             shouldShow = maxScrollTop > 0;
+            isAtBottom = shouldShow && (
+                scrollTop >= (maxScrollTop - completionThreshold) ||
+                (scrollTop + viewportHeight) >= (documentScrollHeight - completionThreshold)
+            );
 
-            if (scrollTop > 0 && shouldShow) {
-                timeBar.style.bottom = '0%';
-            } else {
-                timeBar.style.bottom = '-100%';
-            }
-
-            if (shouldShow) {
+            if (shouldShow && isAtBottom) {
+                percentage = 1;
+                completedVal = 100;
+                remainingVal = 0;
+                completedTime = totalSeconds;
+                remainingTime = 0;
+            } else if (shouldShow) {
                 percentage = clampPercentage(scrollTop / maxScrollTop);
                 completedVal = parseFloat((percentage * 100).toFixed(2));
                 remainingVal = Math.max(0, parseFloat((100 - completedVal).toFixed(2)));
@@ -97,14 +110,19 @@
                 remainingTime = Math.max(0, totalSeconds - completedTime);
             }
 
+            setTimeBarVisibility(scrollTop > 0 && shouldShow && !isAtBottom);
             completed.style.width = completedVal.toString() + '%';
             remaining.style.width = remainingVal.toString() + '%';
             timeCompleted.innerText = formatTime(completedTime);
             timeRemaining.innerText = formatTime(remainingTime);
 
-            if (percentage >= 1 && shouldShow) {
+            if (isAtBottom && !hasFinishedReading) {
+                hasFinishedReading = true;
                 triggerFinishedReading();
-            } else {
+            } else if (!isAtBottom && hasFinishedReading) {
+                hasFinishedReading = false;
+                triggerStillReading();
+            } else if (!isAtBottom) {
                 triggerStillReading();
             }
 
