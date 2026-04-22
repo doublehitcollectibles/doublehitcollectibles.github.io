@@ -1,6 +1,6 @@
 {% assign author = site.authors | where: "name", page.author | first %}
 {% if author %}
-  <section class="author">
+  <section class="author{% if include.with_share %} author--with-share{% endif %}">
     <div class="details">
       {% if author.photo %}
         <img class="img-rounded" src="{% if author.photo contains '://' %}{{ author.photo }}{% else %}{{ author.photo | relative_url }}{% endif %}" alt="{{ author.display_name }}">
@@ -12,7 +12,30 @@
         <a href="{{ author.url | prepend: site.baseurl }}">{{ author.display_name }}</a>
       </h3>
       <p class="desc">{{ author.bio }}</p>
-      <p>
+      {% if include.with_share %}
+        <div class="author-share">
+          <span class="author-share-label">{{ site.translations.text.share | default: "Share" }}</span>
+          <div class="author-share-links">
+            <a
+              aria-label="{{ site.translations.button.share_on_twitter | default: 'Share on Twitter' }}"
+              href="https://twitter.com/intent/tweet?text=&quot;{{ page.description }}&quot;%20{{ site.url }}{{ page.url }}{% if site.twitter_username %}%20via%20&#64;{{ site.twitter_username }}{% endif %}&hashtags={{ page.tags | join: ',' }}"
+              onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;"
+              title="{{ site.translations.button.share_on_twitter | default: 'Share on Twitter' }}"
+            >
+              <svg class="icon icon-twitter"><use xlink:href="#icon-twitter"></use></svg>
+            </a>
+            <a
+              aria-label="{{ site.translations.button.share_on_facebook | default: 'Share on Facebook' }}"
+              href="https://www.facebook.com/sharer/sharer.php?u={{ site.url }}{{ page.url }}"
+              onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;"
+              title="{{ site.translations.button.share_on_facebook | default: 'Share on Facebook' }}"
+            >
+              <svg class="icon icon-facebook"><use xlink:href="#icon-facebook"></use></svg>
+            </a>
+          </div>
+        </div>
+      {% endif %}
+      <p class="author-social">
         {% if author.github_username %}
           <a href="https://github.com/{{ author.github_username }}" title="Github">
             <svg><use xlink:href="#icon-github"></use></svg>

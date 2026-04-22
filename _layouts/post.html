@@ -77,8 +77,12 @@
         {% endif %}
 
         {% include subscription.html %}
-        {% include share.html %}
-        {% include author.html %}
+        {% unless page.page_class == "welcome-post-page" %}
+            {% include share.html %}
+            {% include author.html %}
+        {% else %}
+            {% include author.html with_share=true %}
+        {% endunless %}
         {% include comments.html %}
         {% include footer.html %}
 
