@@ -14,8 +14,6 @@ The live site currently includes:
 - an About page styled to match the collection experience
 - a public collection page at `/collection/`
 - a secure admin workspace at `/manage-collection/`
-- a contact form flow
-- an RSS feed at `/feed.xml`
 
 ## Public Collection Experience
 
@@ -109,7 +107,7 @@ Representative routes:
 - `_sass/` contains the site styling, including the collection/admin experience
 - `assets/js/` contains the browser-side collection and admin logic
 - `assets/data/owned-cards.json` contains the local fallback inventory source
-- `docs/` contains collection and worker architecture notes
+- `docs/` contains internal collection and worker architecture notes
 - `workers/pricing-service/` contains the Cloudflare worker, D1 migrations, scripts, and TypeScript source
 
 ## Local Development
