@@ -39,7 +39,7 @@ page_class: collection-page
   <section class="collection-grid-wrap collection-grid-wrap--tracked">
     <div class="collection-section-heading">
       <h2>Tracked Collection</h2>
-      <p>Your owned cards and products, rendered with Pokemon TCG market pricing first and PriceCharting fallback data where needed.</p>
+      <p>Double Hit Collectibles tracked cards and products, rendered with PriceCharting-backed raw and PSA 10 market data across the collection.</p>
     </div>
     <div class="collection-grid" data-owned-grid></div>
     <div class="collection-empty" data-owned-empty hidden>
