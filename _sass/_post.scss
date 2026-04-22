@@ -866,7 +866,7 @@ body.welcome-post-page {
 }
 
 body.welcome-post-page .content {
-  padding-top: rem(112px);
+  padding-top: rem(140px);
 }
 
 body.welcome-post-page .welcome-post-page__post {
@@ -901,7 +901,7 @@ body.welcome-post-page footer {
 }
 
 body.welcome-post-page .welcome-post-page__content {
-  padding: rem(28px) 0 rem(32px);
+  padding: rem(40px) 0 rem(32px);
   width: 100%;
 }
 
@@ -1119,7 +1119,7 @@ body.welcome-post-page .recommendation .message svg {
 
 @media (max-width: 640px) {
   body.welcome-post-page .content {
-    padding-top: rem(96px);
+    padding-top: rem(120px);
   }
 
   body.welcome-post-page .welcome-post-page__post {

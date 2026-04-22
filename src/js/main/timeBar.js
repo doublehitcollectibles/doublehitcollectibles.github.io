@@ -8,7 +8,6 @@
     if (post && timeBar) {
         var lastScrollTop = 0;
         var directionThreshold = 2;
-        var maxScrollTop = post.scrollHeight;
         var currentDirection = 'down';
 
         var completed = timeBar.querySelector('.completed');
@@ -18,9 +17,61 @@
 
         timeBar.setAttribute('data-scroll-direction', currentDirection);
 
-        document.addEventListener('scroll', function () {
+        function getViewportHeight() {
+            var visualViewport = window.visualViewport;
+            return (visualViewport && visualViewport.height) ||
+                window.innerHeight ||
+                document.documentElement.clientHeight ||
+                0;
+        }
+
+        function getDocumentScrollHeight() {
+            var body = document.body;
+            var documentElement = document.documentElement;
+
+            return Math.max(
+                body ? body.scrollHeight : 0,
+                body ? body.offsetHeight : 0,
+                body ? body.clientHeight : 0,
+                documentElement ? documentElement.scrollHeight : 0,
+                documentElement ? documentElement.offsetHeight : 0,
+                documentElement ? documentElement.clientHeight : 0,
+                post.scrollHeight
+            );
+        }
+
+        function clampPercentage(value) {
+            if (value < 0) {
+                return 0;
+            }
+
+            if (value > 1) {
+                return 1;
+            }
+
+            return value;
+        }
+
+        function formatTime(totalSeconds) {
+            var minutes = Math.floor(totalSeconds / 60);
+            var seconds = totalSeconds - (minutes * 60);
+
+            minutes = (minutes < 10) ? '0' + minutes : minutes;
+            seconds = (seconds < 10) ? '0' + seconds : seconds;
+
+            return minutes + ':' + seconds;
+        }
+
+        function updateTimeBar() {
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             var scrollDelta = scrollTop - lastScrollTop;
+            var maxScrollTop = Math.max(0, getDocumentScrollHeight() - getViewportHeight());
+            var totalSeconds = parseInt(timeBar.getAttribute('data-minutes'), 10) * 60;
+            var percentage = 0;
+            var completedVal = 0;
+            var remainingVal = 100;
+            var completedTime = 0;
+            var remainingTime = totalSeconds;
 
             if (scrollDelta > directionThreshold) {
                 currentDirection = 'down';
@@ -30,58 +81,44 @@
 
             timeBar.setAttribute('data-scroll-direction', currentDirection);
 
-            if (Math.abs(scrollDelta) > directionThreshold && shouldShow && scrollTop > 0) {
+            shouldShow = maxScrollTop > 0;
+
+            if (scrollTop > 0 && shouldShow) {
                 timeBar.style.bottom = '0%';
-            } else if (!shouldShow || scrollTop <= 0) {
+            } else {
                 timeBar.style.bottom = '-100%';
             }
 
-            if (scrollTop <= maxScrollTop) {
-                var percentage = scrollTop / maxScrollTop;
+            if (shouldShow) {
+                percentage = clampPercentage(scrollTop / maxScrollTop);
+                completedVal = parseFloat((percentage * 100).toFixed(2));
+                remainingVal = Math.max(0, parseFloat((100 - completedVal).toFixed(2)));
+                completedTime = Math.round(percentage * totalSeconds);
+                remainingTime = Math.max(0, totalSeconds - completedTime);
+            }
 
-                var completedVal = (percentage * 100).toFixed(2);
-                var remainingVal = 100 - parseFloat(completedVal);
-                completed.style.width = completedVal.toString() + '%';
-                remaining.style.width = remainingVal.toString() + '%';
+            completed.style.width = completedVal.toString() + '%';
+            remaining.style.width = remainingVal.toString() + '%';
+            timeCompleted.innerText = formatTime(completedTime);
+            timeRemaining.innerText = formatTime(remainingTime);
 
-                var totalSeconds = parseInt(timeBar.getAttribute('data-minutes')) * 60;
-
-                var completedTime = parseInt(percentage * totalSeconds);
-                var completedMin = parseInt(completedTime / 60);
-                var completedSec = parseInt((completedTime / 60 - completedMin) * 60);
-
-                var remainingTime = totalSeconds - completedTime;
-                var remainingMin = parseInt(remainingTime / 60);
-                var remainingSec = parseInt((remainingTime / 60 - remainingMin) * 60);
-
-                completedMin = (completedMin < 10) ? '0' + completedMin : completedMin;
-                completedSec = (completedSec < 10) ? '0' + completedSec : completedSec;
-                remainingMin = (remainingMin < 10) ? '0' + remainingMin : remainingMin;
-                remainingSec = (remainingSec < 10) ? '0' + remainingSec : remainingSec;
-
-                timeCompleted.innerText = completedMin + ':' + completedSec;
-                timeRemaining.innerText = remainingMin + ':' + remainingSec;
-
-                shouldShow = true;
-
-                triggerStillReading();
-            } else {
-                completed.style.width = '100%';
-                remaining.style.width = '0%';
-
-                var minutes = parseInt(timeBar.getAttribute('data-minutes'));
-                minutes = (minutes < 10) ? '0' + minutes : minutes;
-
-                timeCompleted.innerText = '00:00';
-                timeRemaining.innerText = minutes + ':00';
-
-                shouldShow = false;
-
+            if (percentage >= 1 && shouldShow) {
                 triggerFinishedReading();
+            } else {
+                triggerStillReading();
             }
 
             lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-        });
+        }
+
+        window.addEventListener('scroll', updateTimeBar, { passive: true });
+        window.addEventListener('resize', updateTimeBar);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateTimeBar);
+        }
+
+        updateTimeBar();
     }
 
     function triggerStillReading() {
