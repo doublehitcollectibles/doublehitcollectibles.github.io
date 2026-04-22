@@ -1,7 +1,13 @@
 import { getPricingConfig } from "../config";
 import { listCollectionCards, updateCollectionCardsPriceSnapshot } from "./collectionCardsDb";
 import { getOwnedCollection } from "./ownedCollection";
-import { getPokemonCardHistory, getLatestPokemonCardSnapshot, writePokemonCardSnapshot } from "./pokemonCollectionDb";
+import {
+  getPokemonCardHistory,
+  getLatestPokemonCardSnapshot,
+  getRecentPokemonCardSnapshots,
+  writePokemonCardSnapshot,
+  type PokemonSnapshotRow,
+} from "./pokemonCollectionDb";
 import {
   fetchPriceChartingCollectible,
   fetchPriceChartingPricing,
@@ -765,6 +771,30 @@ function hasCurrentCustomStoredPricePayload(
   return refreshedAt > 0 && Date.now() - refreshedAt < refreshCutoffMs;
 }
 
+function selectPreferredStoredSnapshot(
+  snapshots: PokemonSnapshotRow[],
+): { snapshot: PokemonSnapshotRow; payload: StoredPricePayload | null } | null {
+  const normalizedSnapshots = snapshots.map((snapshot) => ({
+    snapshot,
+    payload: normalizeStoredPricePayload(snapshot.price_payload ?? null),
+  }));
+  const priceChartingSnapshot = normalizedSnapshots.find(
+    (entry) => hasRenderableStoredPricePayload(entry.payload) && hasPriceChartingPrimarySource(entry.payload),
+  );
+
+  if (priceChartingSnapshot) {
+    return priceChartingSnapshot;
+  }
+
+  const renderableSnapshot = normalizedSnapshots.find((entry) => hasRenderableStoredPricePayload(entry.payload));
+
+  if (renderableSnapshot) {
+    return renderableSnapshot;
+  }
+
+  return normalizedSnapshots[0] || null;
+}
+
 function buildCustomStoredPricePayload(detail: PriceChartingCollectibleDetail): StoredPricePayload {
   const pricing = buildCustomPricing(detail.priceVariants, "PriceCharting", "USD");
 
@@ -1008,6 +1038,9 @@ export async function getPokemonCardDetail(
   const latestCapturedAt = latestSnapshot ? Date.parse(latestSnapshot.captured_at) : 0;
   const cacheFreshMs = config.pokemonTcgCacheTtlMinutes * 60_000;
   const storedPayload = normalizeStoredPricePayload(latestSnapshot?.price_payload ?? null);
+  const recentSnapshots = latestSnapshot ? await getRecentPokemonCardSnapshots(env.PRICING_DB, cardId, ownership?.priceType, 12) : [];
+  const preferredStoredSnapshot = selectPreferredStoredSnapshot(recentSnapshots);
+  const preferredStoredPayload = preferredStoredSnapshot?.payload ?? null;
 
   if (
     !forceRefresh &&
@@ -1048,6 +1081,11 @@ export async function getPokemonCardDetail(
 
   if (!externalPricing && hasRenderableStoredPricePayload(storedPayload) && hasPriceChartingPrimarySource(storedPayload)) {
     return mapPokemonCardSummary(card, ownership, historyBefore, storedPayload);
+  }
+
+  if (!externalPricing && preferredStoredSnapshot && preferredStoredPayload && hasRenderableStoredPricePayload(preferredStoredPayload)) {
+    const preferredRawCard = JSON.parse(preferredStoredSnapshot.snapshot.card_payload) as PokemonCard;
+    return mapPokemonCardSummary(preferredRawCard, ownership, historyBefore, preferredStoredPayload);
   }
 
   const summary = mapPokemonCardSummary(
@@ -1149,9 +1187,18 @@ export async function getStoredCollectionCards(env: Env): Promise<CollectionDisp
   const storedCards = await listCollectionCards(env.PRICING_DB);
   const fallbackCurrency = getOwnedCollection().currency ?? "USD";
   const results = await Promise.allSettled(
-    storedCards.map((entry) => {
+    storedCards.map(async (entry) => {
       if (entry.source === "custom") {
-        return Promise.resolve(mapCustomCollectionSummary(entry, fallbackCurrency));
+        return mapCustomCollectionSummary(entry, fallbackCurrency);
+      }
+
+      const snapshots = await getRecentPokemonCardSnapshots(env.PRICING_DB, entry.cardId || "", entry.priceType, 12);
+      const preferredSnapshot = selectPreferredStoredSnapshot(snapshots);
+
+      if (preferredSnapshot) {
+        const rawCard = JSON.parse(preferredSnapshot.snapshot.card_payload) as PokemonCard;
+        const history = await getPokemonCardHistory(env.PRICING_DB, entry.cardId || "", entry.priceType, 30);
+        return mapPokemonCardSummary(rawCard, entry as CollectionCardRecord, history, preferredSnapshot.payload);
       }
 
       return getPokemonCardDetail(env, entry.cardId || "", entry as CollectionCardRecord, false);

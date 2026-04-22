@@ -31,7 +31,7 @@ function transpileModule(source) {
   }).outputText;
 }
 
-test("stored collection loads custom PriceCharting items from persisted summaries instead of live rehydrating every card", async () => {
+test("stored collection loads custom items and API cards from persisted snapshots before live rehydrating", async () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
   const start = source.indexOf("export async function getStoredCollectionCards");
 
@@ -44,12 +44,16 @@ test("stored collection loads custom PriceCharting items from persisted summarie
   );
   const liveHydrationCalls = [];
   const mappedCards = [];
+  const storedSnapshotHydrations = [];
   const buildHelpers = new Function(
     "listCollectionCards",
     "getOwnedCollection",
     "mapCustomCollectionSummary",
+    "getRecentPokemonCardSnapshots",
+    "selectPreferredStoredSnapshot",
+    "getPokemonCardHistory",
+    "mapPokemonCardSummary",
     "getPokemonCardDetail",
-    "getPriceChartingCollectibleDetail",
     `${getStoredCollectionCardsSource}; return { getStoredCollectionCards };`,
   );
   const { getStoredCollectionCards } = buildHelpers(
@@ -72,10 +76,20 @@ test("stored collection loads custom PriceCharting items from persisted summarie
       mappedCards.push({ entry, fallbackCurrency });
       return { kind: "custom", id: entry.cardId, title: entry.label || "Custom" };
     },
-    async (_env, cardId) => ({ kind: "api", id: cardId, title: "API card" }),
-    async (_env, itemId) => {
-      liveHydrationCalls.push(itemId);
-      return { kind: "custom", id: itemId, title: "Should not be called" };
+    async (_db, cardId) => (
+      cardId === "sm70"
+        ? [{ card_payload: JSON.stringify({ id: "sm70", name: "API card" }), price_payload: JSON.stringify({ pricing: { currentPrice: 42 } }) }]
+        : []
+    ),
+    (snapshots) => snapshots[0] ? { snapshot: snapshots[0], payload: { pricing: { currentPrice: 42 } } } : null,
+    async () => [],
+    (rawCard, entry) => {
+      storedSnapshotHydrations.push({ rawCard, entry });
+      return { kind: "api", id: rawCard.id, title: rawCard.name };
+    },
+    async (_env, cardId) => {
+      liveHydrationCalls.push(cardId);
+      return { kind: "api", id: cardId, title: "Live API card" };
     },
   );
 
@@ -85,5 +99,6 @@ test("stored collection loads custom PriceCharting items from persisted summarie
   assert.equal(cards[0].id, "pricecharting:/game/pokemon-shining-fates/morpeko-v-37");
   assert.equal(cards[1].id, "sm70");
   assert.equal(mappedCards.length, 1);
+  assert.equal(storedSnapshotHydrations.length, 1);
   assert.deepEqual(liveHydrationCalls, []);
 });

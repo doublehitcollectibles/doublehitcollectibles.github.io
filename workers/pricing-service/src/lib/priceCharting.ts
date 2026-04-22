@@ -11,6 +11,7 @@ interface PriceChartingLookupCard {
   preferredPriceType?: string;
   set?: {
     name?: string;
+    series?: string;
   };
 }
 
@@ -76,6 +77,15 @@ function normalizeForMatch(value: string | undefined): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function slugifyPriceChartingPathPart(value: string | undefined): string {
+  return normalizeQueryPart(decodeHtmlEntities(value))
+    .toLowerCase()
+    .replace(/'/g, "")
+    .replace(/[^a-z0-9&]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function escapeRegex(value: string): string {
@@ -548,6 +558,56 @@ function buildSetAliasTokens(normalizedSet: string): string[] {
   return Array.from(aliases);
 }
 
+function buildDirectSetPathCandidates(card: PriceChartingLookupCard): string[] {
+  const setName = normalizeQueryPart(card.set?.name);
+  const setSeries = normalizeQueryPart(card.set?.series);
+  const setSlug = slugifyPriceChartingPathPart(setName);
+  const seriesSlug = slugifyPriceChartingPathPart(setSeries);
+  const candidates = new Set<string>();
+
+  if (setSlug) {
+    candidates.add(`pokemon-${setSlug}`);
+  }
+
+  if (seriesSlug && setSlug) {
+    candidates.add(`pokemon-${seriesSlug}-${setSlug}`);
+  }
+
+  if (/black star promos?/i.test(setName)) {
+    candidates.add("pokemon-promo");
+    candidates.add("pokemon-promos");
+    if (seriesSlug) {
+      candidates.add(`pokemon-${seriesSlug}-black-star-promos`);
+    }
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+function buildDirectProductPageCandidateUrls(card: PriceChartingLookupCard): string[] {
+  const titleSlug = slugifyPriceChartingPathPart(card.name);
+  const numberSlug = slugifyPriceChartingPathPart(card.number);
+
+  if (!titleSlug) {
+    return [];
+  }
+
+  const titleCandidates = new Set<string>([
+    numberSlug ? `${titleSlug}-${numberSlug}` : titleSlug,
+    titleSlug,
+  ]);
+  const setPathCandidates = buildDirectSetPathCandidates(card);
+  const urls = new Set<string>();
+
+  setPathCandidates.forEach((setPath) => {
+    titleCandidates.forEach((titlePath) => {
+      urls.add(`${PRICECHARTING_BASE_URL}/game/${setPath}/${titlePath}`);
+    });
+  });
+
+  return Array.from(urls);
+}
+
 function isExactNameNumberMatch(
   normalizedTitle: string,
   normalizedName: string,
@@ -739,6 +799,28 @@ function productPageMatchesCard(
 }
 
 async function resolveProductPage(env: Env, card: PriceChartingLookupCard): Promise<PriceChartingProductPage | null> {
+  const directCandidateUrls = buildDirectProductPageCandidateUrls(card);
+
+  for (const candidateUrl of directCandidateUrls) {
+    const directResponse = await fetchHtml(env, candidateUrl);
+
+    if (!directResponse.ok) {
+      continue;
+    }
+
+    const directHtml = await directResponse.text();
+    const directFinalUrl = (directResponse.url || candidateUrl).split("?")[0];
+
+    if (!isProductPageHtml(directHtml) || !productPageMatchesCard(card, directFinalUrl, directHtml)) {
+      continue;
+    }
+
+    return {
+      sourceUrl: directFinalUrl,
+      html: directHtml,
+    };
+  }
+
   const queries = buildSearchQueries(card);
 
   for (const query of queries) {
