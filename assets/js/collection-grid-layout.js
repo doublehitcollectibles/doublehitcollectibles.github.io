@@ -3,6 +3,10 @@
     return Array.isArray(cards) ? cards : [];
   }
 
+  function getCardKey(card) {
+    return card?.instanceKey || card?.id || "";
+  }
+
   function getInlineDetailSpan(columnCount) {
     const columns = Math.max(1, Number(columnCount) || 1);
 
@@ -21,7 +25,7 @@
       return normalizedCards.map((card) => ({ type: "card", card }));
     }
 
-    const selectedIndex = normalizedCards.findIndex((card) => card?.id === selectedCardId);
+    const selectedIndex = normalizedCards.findIndex((card) => getCardKey(card) === selectedCardId);
 
     if (selectedIndex === -1) {
       return normalizedCards.map((card) => ({ type: "card", card }));
@@ -39,7 +43,7 @@
       .map((card) => ({ type: "card", card }));
     const selectedCard = normalizedCards[selectedIndex];
     const suffixCards = rowCards
-      .filter((card, index) => card?.id !== selectedCardId && index >= leadCount)
+      .filter((card, index) => getCardKey(card) !== selectedCardId && index >= leadCount)
       .map((card) => ({ type: "card", card }));
     const afterRow = normalizedCards.slice(rowEnd).map((card) => ({ type: "card", card }));
 

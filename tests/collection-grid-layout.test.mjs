@@ -51,3 +51,24 @@ test("uses a one-column detail slot on tighter two-column grids", () => {
 
   assert.deepEqual(summarize(items), ["b", "detail:b:1", "a", "c"]);
 });
+
+test("uses card instance keys so duplicate card ids keep the detail beside the selected variant", () => {
+  const api = loadLayoutApi();
+  const cards = [
+    { id: "sm70", instanceKey: "owned:1" },
+    { id: "sm70", instanceKey: "owned:2" },
+    { id: "sm35-57", instanceKey: "owned:3" },
+  ];
+  const items = api.buildInlineDetailLayout(cards, "owned:2", 4);
+
+  assert.deepEqual(
+    Array.from(items, (item) => {
+      if (item.type === "detail") {
+        return `detail:${item.cardId}:${item.span}`;
+      }
+
+      return item.card.instanceKey;
+    }),
+    ["owned:1", "owned:2", "detail:owned:2:2", "owned:3"],
+  );
+});
