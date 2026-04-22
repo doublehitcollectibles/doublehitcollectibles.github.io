@@ -762,68 +762,94 @@
 }
 
 body.about-page {
+  --collection-text-primary: #f6f2e8;
+  --collection-text-muted: rgba(246, 242, 232, 0.9);
+  --collection-text-soft: rgba(246, 242, 232, 0.82);
+  --collection-text-faint: rgba(246, 242, 232, 0.74);
+  --collection-text-label: rgba(255, 232, 156, 0.94);
   background: url(../../assets/img/uploads/pokemon-hoenn-1.png) center top / cover fixed no-repeat;
   background-color: #081220;
+  color: var(--collection-text-primary);
 }
 
 .about-page__content {
-  position: relative;
   min-height: calc(100vh - #{rem(90px)});
   padding: rem(72px) rem(14px) rem(56px) !important;
   background: transparent;
-  overflow: hidden;
 
   @include media(">=sm") {
     padding: rem(88px) rem(24px) rem(72px) !important;
   }
 }
 
-.about-page__inner {
+.about-page__app {
+  max-width: rem(1280px);
+  margin: 0 auto;
+}
+
+.about-page__content h1,
+.about-page__content h2,
+.about-page__content p {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.about-page__content h1,
+.about-page__content h2 {
+  color: var(--collection-text-primary) !important;
+  text-shadow: none;
+}
+
+.about-page__content p {
+  color: var(--collection-text-muted) !important;
+  text-shadow: none;
+}
+
+.about-page__hero,
+.about-page__section {
   position: relative;
   z-index: 1;
-  width: min(100%, #{rem(500px)});
-  margin: 0 auto;
-  padding: rem(14px) rem(12px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(8, 14, 24, 0.16);
-  backdrop-filter: blur(2px);
-  box-shadow: 0 rem(10px) rem(24px) rgba(0, 0, 0, 0.14);
+}
 
-  @include media(">=sm") {
-    padding: rem(16px) rem(18px);
+.about-page__hero h1 {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.about-page__section {
+  padding: rem(20px);
+}
+
+.about-page__section .collection-section-heading p,
+.about-page__prose p {
+  color: var(--collection-text-soft) !important;
+}
+
+.about-page__prose {
+  display: grid;
+  gap: rem(18px);
+}
+
+.about-page__prose p {
+  margin: 0 !important;
+  font-size: rem(18px) !important;
+  line-height: rem(33px) !important;
+}
+
+@media (max-width: 640px) {
+  .about-page__section {
+    padding: rem(16px);
   }
 
-  h1,
-  p {
-    max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    color: #fff !important;
-    text-shadow: 0 rem(2px) rem(10px) rgba(0, 0, 0, 0.35);
+  .about-page__prose {
+    gap: rem(14px);
   }
 
-  h1 {
-    font-size: rem(32px) !important;
-    line-height: 1.08 !important;
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-
-    @include media(">=sm") {
-      font-size: rem(42px) !important;
-    }
-  }
-
-  p {
+  .about-page__prose p {
     font-size: rem(16px) !important;
     line-height: rem(28px) !important;
-    margin-top: rem(16px) !important;
-
-    @include media(">=sm") {
-      font-size: rem(18px) !important;
-      line-height: rem(33px) !important;
-      margin-top: rem(22px) !important;
-    }
   }
 }
