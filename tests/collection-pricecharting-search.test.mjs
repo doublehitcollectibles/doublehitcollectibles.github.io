@@ -203,6 +203,39 @@ test("pricecharting search query expansion keeps sealed searches clean and adds 
   assert.deepEqual(buildExpandedSearchQueries("booster bundle"), ["booster bundle"]);
 });
 
+test("pricecharting direct product url candidates cover promos and modern set pages", () => {
+  const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
+  const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");
+  const buildHelpers = new Function(
+    `const exports = {}; const PRICECHARTING_BASE_URL = "https://www.pricecharting.com"; ${transpile(helperBlock)}; return { buildDirectProductPageCandidateUrls };`,
+  );
+  const { buildDirectProductPageCandidateUrls } = buildHelpers();
+
+  assert.ok(
+    buildDirectProductPageCandidateUrls({
+      name: "Shining Arceus",
+      number: "57",
+      set: { name: "Shining Legends" },
+    }).includes("https://www.pricecharting.com/game/pokemon-shining-legends/shining-arceus-57"),
+  );
+
+  assert.ok(
+    buildDirectProductPageCandidateUrls({
+      name: "Shining Ho-Oh",
+      number: "SM70",
+      set: { name: "SM Black Star Promos", series: "Sun & Moon" },
+    }).includes("https://www.pricecharting.com/game/pokemon-promo/shining-ho-oh-sm70"),
+  );
+
+  assert.ok(
+    buildDirectProductPageCandidateUrls({
+      name: "Zapdos ex",
+      number: "202",
+      set: { name: "151", series: "Scarlet & Violet" },
+    }).includes("https://www.pricecharting.com/game/pokemon-scarlet-&-violet-151/zapdos-ex-202"),
+  );
+});
+
 test("public explorer and admin workspace both use pricecharting-backed collectible search routes", () => {
   const collectionSource = readFile("assets/js/collection.js");
   const adminSource = readFile("assets/js/collection-admin.js");

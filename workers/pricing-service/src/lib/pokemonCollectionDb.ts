@@ -1,6 +1,6 @@
 import type { PokemonCardSummary, PokemonHistoryPoint } from "../types";
 
-interface PokemonSnapshotRow {
+export interface PokemonSnapshotRow {
   card_id: string;
   card_name: string;
   set_name: string | null;
@@ -108,6 +108,45 @@ export async function getLatestPokemonCardSnapshot(
   );
 
   return priceType ? statement.bind(cardId, priceType).first<PokemonSnapshotRow>() : statement.bind(cardId).first<PokemonSnapshotRow>();
+}
+
+export async function getRecentPokemonCardSnapshots(
+  db: D1Database,
+  cardId: string,
+  priceType?: string,
+  limit = 12,
+): Promise<PokemonSnapshotRow[]> {
+  const priceTypeClause = priceType ? "AND price_type = ?2" : "";
+  const limitParam = priceType ? "?3" : "?2";
+  const statement = db.prepare(
+    `SELECT
+       card_id,
+       card_name,
+       set_name,
+       card_number,
+       rarity,
+       image_small,
+       image_large,
+       price_type,
+       price_source,
+       currency,
+       market_price,
+       captured_at,
+       tcgplayer_updated_at,
+       cardmarket_updated_at,
+       card_payload,
+       price_payload
+     FROM pokemon_card_snapshots
+     WHERE card_id = ?1 ${priceTypeClause}
+     ORDER BY captured_at DESC
+     LIMIT ${limitParam}`,
+  );
+
+  const result = priceType
+    ? await statement.bind(cardId, priceType, limit).all<PokemonSnapshotRow>()
+    : await statement.bind(cardId, limit).all<PokemonSnapshotRow>();
+
+  return result.results;
 }
 
 export async function getPokemonCardHistory(

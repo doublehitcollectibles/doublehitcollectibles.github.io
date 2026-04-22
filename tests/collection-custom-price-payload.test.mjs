@@ -188,3 +188,50 @@ test("tracked collection worker refresh no longer treats fresh TCGplayer API sna
     /Date\.now\(\) - Date\.parse\(latestSnapshot\.captured_at\) < refreshCutoff\s*&&\s*hasCurrentStoredPricePayload\(storedPayload\)/s,
   );
 });
+
+test("stored snapshot selection prefers the newest PriceCharting-backed snapshot over a newer TCGplayer one", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+  const helperBlock = extractBetween(source, "const STORED_PRICE_PAYLOAD_VERSION", "export function mapPokemonCardSummary");
+  const buildHelpers = new Function(
+    "fetchPriceChartingCollectible",
+    "updateCollectionCardsPriceSnapshot",
+    `${transpile(helperBlock)}; return { selectPreferredStoredSnapshot };`,
+  );
+  const { selectPreferredStoredSnapshot } = buildHelpers(
+    async () => {
+      throw new Error("not used");
+    },
+    async () => {
+      throw new Error("not used");
+    },
+  );
+
+  const preferred = selectPreferredStoredSnapshot([
+    {
+      captured_at: "2026-04-21T20:00:00.000Z",
+      price_payload: JSON.stringify({
+        payloadVersion: 5,
+        pricing: { currentPrice: 21.94, sourceLabel: "TCGplayer Market" },
+        priceVariants: [{ key: "raw", currentPrice: 21.94, sourceLabel: "TCGplayer Market" }],
+      }),
+    },
+    {
+      captured_at: "2026-04-21T19:00:00.000Z",
+      price_payload: JSON.stringify({
+        payloadVersion: 5,
+        pricing: { currentPrice: 20.96, sourceLabel: "PriceCharting Ungraded" },
+        priceVariants: [
+          { key: "raw", currentPrice: 20.96, sourceLabel: "PriceCharting Ungraded", updatedAt: "2026-04-01T06:00:00.000Z" },
+          { key: "psa10", currentPrice: 385, sourceLabel: "PriceCharting PSA 10", updatedAt: "2026-04-01T06:00:00.000Z" },
+        ],
+        historySeries: [],
+        marketSourceUrl: "https://www.pricecharting.com/game/pokemon-promo/shining-ho-oh-sm70",
+      }),
+    },
+  ]);
+
+  assert.equal(
+    preferred?.payload?.marketSourceUrl,
+    "https://www.pricecharting.com/game/pokemon-promo/shining-ho-oh-sm70",
+  );
+});
