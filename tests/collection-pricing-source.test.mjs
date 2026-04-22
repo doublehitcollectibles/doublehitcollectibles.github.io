@@ -193,17 +193,52 @@ test("stored price payload validation rejects legacy snapshots without a version
   };
   const currentPayload = {
     ...legacyPayload,
-    payloadVersion: 4,
+    payloadVersion: 5,
   };
   const staleVersionPayload = {
     ...legacyPayload,
-    payloadVersion: 3,
+    payloadVersion: 4,
   };
 
   assert.equal(hasCurrentStoredPricePayload(legacyPayload), false);
   assert.equal(hasCurrentStoredPricePayload(staleVersionPayload), false);
   assert.equal(hasCurrentStoredPricePayload(currentPayload), true);
   assert.match(source, /hasCurrentStoredPricePayload\(storedPayload\)/);
+});
+
+test("stored price payload validation rejects current-version snapshots that still use TCGplayer as the primary raw source", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+  const helperBlock = extractBetween(source, "const STORED_PRICE_PAYLOAD_VERSION", "export function mapPokemonCardSummary");
+  const buildHelpers = new Function(`${transpile(helperBlock)}; return { hasCurrentStoredPricePayload };`);
+  const { hasCurrentStoredPricePayload } = buildHelpers();
+
+  const tcgPayload = {
+    payloadVersion: 5,
+    externalPricingChecked: true,
+    priceVariants: [
+      {
+        key: "raw",
+        label: "Raw",
+        currency: "USD",
+        currentPrice: 21.94,
+        sourceLabel: "TCGplayer Market",
+        updatedAt: "2026-04-21T00:00:00.000Z",
+        metrics: {},
+      },
+    ],
+    historySeries: [
+      {
+        key: "raw",
+        label: "Holofoil",
+        currency: "USD",
+        sourceLabel: "TCGplayer Market",
+        color: "#ff8a4c",
+        points: [{ capturedAt: "2026-04-21T00:00:00.000Z", price: 21.94 }],
+      },
+    ],
+  };
+
+  assert.equal(hasCurrentStoredPricePayload(tcgPayload), false);
 });
 
 test("pricecharting candidate scoring rejects loose cross-card matches like Mewtwo and Mew GX for Mewtwo 52", () => {
@@ -308,7 +343,7 @@ test("pricecharting product-page validation rejects direct redirects to the wron
 test("snapshot writes persist a version marker for future price-payload invalidation", () => {
   const source = readFile("workers/pricing-service/src/lib/pokemonCollectionDb.ts");
 
-  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 4/);
+  assert.match(source, /const STORED_PRICE_PAYLOAD_VERSION = 5/);
   assert.match(source, /payloadVersion:\s*STORED_PRICE_PAYLOAD_VERSION/);
 });
 

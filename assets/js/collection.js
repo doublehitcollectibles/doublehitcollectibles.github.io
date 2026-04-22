@@ -41,7 +41,6 @@
   };
 
   let resizeTimer = 0;
-  const OWNED_CARD_REFRESH_DELAY_MS = 260;
 
   const CARD_SELECT_FIELDS = [
     "id",
@@ -1429,20 +1428,21 @@
     const total = Number(options.total || 0);
     const completed = Number(options.completed || 0);
     const failed = Number(options.failed || 0);
+    const batchSize = Math.max(1, Number(options.batchSize || 8));
 
     if (total > 0 && completed < total) {
-      return `Worker-backed mode active. Loading cached tracked cards first, then refreshing ${completed}/${total} in staggered updates to stay within Cloudflare limits...`;
+      return `Worker-backed mode active. Loading cached tracked cards first, then refreshing ${completed}/${total} in staggered ${batchSize}-card batches to stay within Cloudflare limits...`;
     }
 
     if (total > 0 && failed > 0) {
-      return `Worker-backed mode active. Refreshed ${completed}/${total} tracked cards with staggered updates. ${failed} card${failed === 1 ? "" : "s"} kept cached data, and you can click any card to force a fresh update for that specific item.`;
+      return `Worker-backed mode active. Refreshed ${completed}/${total} tracked cards with staggered ${batchSize}-card batches. ${failed} card${failed === 1 ? "" : "s"} kept cached data, and you can click any card to force a fresh update for that specific item.`;
     }
 
     if (total > 0) {
-      return `Worker-backed mode active. Refreshed all ${total} tracked cards with staggered updates. Click any card to force a fresh update for that specific item.`;
+      return `Worker-backed mode active. Refreshed all ${total} tracked cards with staggered ${batchSize}-card batches. Click any card to force a fresh update for that specific item.`;
     }
 
-    return "Worker-backed mode active. Double Hit Collectibles loads cached tracked cards first, then applies staggered live refreshes across the collection while still allowing click-to-refresh updates for individual cards.";
+    return `Worker-backed mode active. Double Hit Collectibles loads cached tracked cards first, then applies staggered ${batchSize}-card live-refresh batches across the collection while still allowing click-to-refresh updates for individual cards.`;
   }
 
   function buildDetailRefreshWarning(card, error) {
@@ -1456,6 +1456,57 @@
     return new Promise((resolve) => {
       window.setTimeout(resolve, ms);
     });
+  }
+
+  function cardNeedsPriceChartingRefresh(card) {
+    const normalizedMarketSource = String(card?.marketSourceUrl || "").trim().toLowerCase();
+    const normalizedPricingSource = String(card?.pricing?.sourceLabel || "").trim().toLowerCase();
+    const rawVariant = (Array.isArray(card?.priceVariants) ? card.priceVariants : []).find((variant) => variant?.key === "raw") || null;
+    const psa10Variant = (Array.isArray(card?.priceVariants) ? card.priceVariants : []).find((variant) => variant?.key === "psa10") || null;
+    const ownershipVariant = String(card?.ownership?.ownershipPriceVariant || "").trim().toLowerCase();
+    const hasRawPrice = typeof rawVariant?.currentPrice === "number" || typeof card?.pricing?.currentPrice === "number";
+    const hasPsa10Price = typeof psa10Variant?.currentPrice === "number";
+    const hasPriceChartingSource =
+      normalizedMarketSource.includes("pricecharting.com") ||
+      normalizedPricingSource.includes("pricecharting");
+
+    return (
+      !hasPriceChartingSource ||
+      normalizedPricingSource.includes("tcgplayer") ||
+      !hasRawPrice ||
+      (ownershipVariant === "psa10" && !hasPsa10Price)
+    );
+  }
+
+  function sortCardsForBackgroundRefresh(cards) {
+    return [...cards].sort((left, right) => {
+      const leftNeedsRefresh = cardNeedsPriceChartingRefresh(left) ? 1 : 0;
+      const rightNeedsRefresh = cardNeedsPriceChartingRefresh(right) ? 1 : 0;
+
+      if (leftNeedsRefresh !== rightNeedsRefresh) {
+        return rightNeedsRefresh - leftNeedsRefresh;
+      }
+
+      const leftTracksPsa10 = String(left?.ownership?.ownershipPriceVariant || "").trim().toLowerCase() === "psa10" ? 1 : 0;
+      const rightTracksPsa10 = String(right?.ownership?.ownershipPriceVariant || "").trim().toLowerCase() === "psa10" ? 1 : 0;
+
+      if (leftTracksPsa10 !== rightTracksPsa10) {
+        return rightTracksPsa10 - leftTracksPsa10;
+      }
+
+      return 0;
+    });
+  }
+
+  function buildRefreshBatches(cards, batchSize) {
+    const size = Math.max(1, Number(batchSize || 1));
+    const batches = [];
+
+    for (let index = 0; index < cards.length; index += size) {
+      batches.push(cards.slice(index, index + size));
+    }
+
+    return batches;
   }
 
   async function fetchLiveCardDetail(card, options = {}) {
@@ -1496,43 +1547,53 @@
     }
 
     const runId = ++state.ownedCardRefreshRunId;
-    const total = cards.length;
+    const prioritizedCards = sortCardsForBackgroundRefresh(cards);
+    const total = prioritizedCards.length;
+    const batchSize = 8;
+    const batchDelayMs = 900;
+    const refreshBatches = buildRefreshBatches(prioritizedCards, batchSize);
     let completed = 0;
     let failed = 0;
 
-    renderStatus(buildWorkerStatusMessage({ total, completed, failed }), "worker");
+    renderStatus(buildWorkerStatusMessage({ total, completed, failed, batchSize }), "worker");
 
-    for (const card of cards) {
+    for (const batch of refreshBatches) {
       if (runId !== state.ownedCardRefreshRunId) {
         return;
       }
 
-      try {
-        const updatedCard = await fetchLiveCardDetail(card, {
-          forceRefresh: true,
-          refreshLive: true,
-        });
+      const results = await Promise.allSettled(
+        batch.map((card) =>
+          fetchLiveCardDetail(card, {
+            forceRefresh: true,
+            refreshLive: true,
+          }),
+        ),
+      );
 
-        if (runId !== state.ownedCardRefreshRunId) {
+      if (runId !== state.ownedCardRefreshRunId) {
+        return;
+      }
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          applyOwnedCardRefresh(result.value);
           return;
         }
 
-        applyOwnedCardRefresh(updatedCard);
-      } catch (error) {
         failed += 1;
-        console.error("Staggered collection card refresh failed.", error);
-      }
+        console.error("Staggered batch collection card refresh failed.", result.reason);
+      });
 
-      completed += 1;
+      completed += batch.length;
 
-      if (runId !== state.ownedCardRefreshRunId) {
-        return;
-      }
-
-      renderStatus(buildWorkerStatusMessage({ total, completed, failed }), failed > 0 ? "error" : "worker");
+      renderStatus(
+        buildWorkerStatusMessage({ total, completed, failed, batchSize }),
+        failed > 0 ? "error" : "worker",
+      );
 
       if (completed < total) {
-        await delay(OWNED_CARD_REFRESH_DELAY_MS);
+        await delay(batchDelayMs);
       }
     }
   }
@@ -1614,9 +1675,9 @@
 
     if (mode === "worker") {
       refreshOwnedCardsInBackground(state.ownedCards.slice()).catch((error) => {
-        console.error("Staggered tracked collection refresh stopped early.", error);
+        console.error("Staggered batch tracked collection refresh stopped early.", error);
         renderStatus(
-          "Worker-backed mode active, but the staggered tracked card refresh stopped early. Showing cached tracked collection data where needed.",
+          "Worker-backed mode active, but the staggered batch tracked card refresh stopped early. Showing cached tracked collection data where needed.",
           "error",
         );
       });

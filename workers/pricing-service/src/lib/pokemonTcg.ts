@@ -83,8 +83,8 @@ interface StoredPricePayload {
   externalPricingChecked?: boolean;
 }
 
-const STORED_PRICE_PAYLOAD_VERSION = 4;
-const TRACKED_COLLECTION_REFRESH_BATCH_SIZE = 12;
+const STORED_PRICE_PAYLOAD_VERSION = 5;
+const TRACKED_COLLECTION_REFRESH_BATCH_SIZE = 8;
 
 const CARD_SELECT_FIELDS = [
   "id",
@@ -724,8 +724,20 @@ function hasRenderableStoredPricePayload(storedPayload: StoredPricePayload | nul
   );
 }
 
+function hasPriceChartingPrimarySource(storedPayload: StoredPricePayload | null): boolean {
+  const rawVariant = storedPayload?.priceVariants?.find((variant) => variant.key === "raw") || storedPayload?.priceVariants?.[0] || null;
+  const rawSource = String(rawVariant?.sourceLabel || "").trim().toLowerCase();
+  const marketSourceUrl = String(storedPayload?.marketSourceUrl || "").trim().toLowerCase();
+
+  return rawSource.includes("pricecharting") || marketSourceUrl.includes("pricecharting.com");
+}
+
 function hasCurrentStoredPricePayload(storedPayload: StoredPricePayload | null): boolean {
   if (!hasRenderableStoredPricePayload(storedPayload)) {
+    return false;
+  }
+
+  if (!hasPriceChartingPrimarySource(storedPayload)) {
     return false;
   }
 
@@ -742,6 +754,10 @@ function hasCurrentCustomStoredPricePayload(
   refreshCutoffMs: number,
 ): boolean {
   if (!hasRenderableStoredPricePayload(storedPayload)) {
+    return false;
+  }
+
+  if (!hasPriceChartingPrimarySource(storedPayload)) {
     return false;
   }
 
@@ -1029,6 +1045,11 @@ export async function getPokemonCardDetail(
     return null;
   });
   const historyBefore = await getPokemonCardHistory(env.PRICING_DB, cardId, ownership?.priceType, 29);
+
+  if (!externalPricing && hasRenderableStoredPricePayload(storedPayload) && hasPriceChartingPrimarySource(storedPayload)) {
+    return mapPokemonCardSummary(card, ownership, historyBefore, storedPayload);
+  }
+
   const summary = mapPokemonCardSummary(
     card,
     ownership,
@@ -1109,8 +1130,13 @@ export async function refreshTrackedPokemonCollection(env: Env, trackedEntries: 
     }
 
     const latestSnapshot = await getLatestPokemonCardSnapshot(env.PRICING_DB, entry.cardId || "", entry.priceType);
+    const storedPayload = normalizeStoredPricePayload(latestSnapshot?.price_payload ?? null);
 
-    if (latestSnapshot && Date.now() - Date.parse(latestSnapshot.captured_at) < refreshCutoff) {
+    if (
+      latestSnapshot &&
+      Date.now() - Date.parse(latestSnapshot.captured_at) < refreshCutoff &&
+      hasCurrentStoredPricePayload(storedPayload)
+    ) {
       continue;
     }
 

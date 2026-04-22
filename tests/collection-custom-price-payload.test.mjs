@@ -66,7 +66,7 @@ test("custom tracked cards reuse persisted PriceCharting payloads for PSA 10 val
     marketSourceUrl: "https://www.pricecharting.com/game/pokemon-surging-sparks/castform-sunny-form-195",
     priceRefreshedAt: new Date().toISOString(),
     pricePayload: JSON.stringify({
-      payloadVersion: 4,
+      payloadVersion: 5,
       externalPricingChecked: true,
       marketSourceUrl: "https://www.pricecharting.com/game/pokemon-surging-sparks/castform-sunny-form-195",
       priceVariants: [
@@ -139,7 +139,7 @@ test("custom tracked-card payload freshness is based on priceRefreshedAt, not th
   );
 
   const storedPayload = {
-    payloadVersion: 4,
+    payloadVersion: 5,
     externalPricingChecked: true,
     priceVariants: [
       {
@@ -178,4 +178,13 @@ test("tracked collection refresh path now includes PriceCharting-backed custom e
 
   assert.match(source, /isPriceChartingCollectionId\(entry\.cardId\)/);
   assert.match(source, /ctx\.waitUntil\(\s*getAllTrackedPokemonEntries\(env\)/s);
+});
+
+test("tracked collection worker refresh no longer treats fresh TCGplayer API snapshots as current", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+
+  assert.match(
+    source,
+    /Date\.now\(\) - Date\.parse\(latestSnapshot\.captured_at\) < refreshCutoff\s*&&\s*hasCurrentStoredPricePayload\(storedPayload\)/s,
+  );
 });
