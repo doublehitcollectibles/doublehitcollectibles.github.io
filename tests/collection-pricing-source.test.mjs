@@ -241,6 +241,65 @@ test("stored price payload validation rejects current-version snapshots that sti
   assert.equal(hasCurrentStoredPricePayload(tcgPayload), false);
 });
 
+test("pricing presentation suppresses TCGplayer-only stored payloads instead of rendering them in tracked collection", () => {
+  const source = readFile("workers/pricing-service/src/lib/pokemonTcg.ts");
+  const helperBlock = extractBetween(source, "function toTitleLabel", "export function mapPokemonCardSummary");
+  const buildHelpers = new Function(`${transpile(helperBlock)}; return { buildPricingPresentation };`);
+  const { buildPricingPresentation } = buildHelpers();
+
+  const basePricing = {
+    priceType: "holofoil",
+    currency: "USD",
+    currentPrice: 22.06,
+    sourceLabel: "TCGplayer Market",
+    metrics: { market: 22.06 },
+    updatedAt: "2026-04-21T00:00:00.000Z",
+  };
+  const history = [
+    {
+      capturedAt: "2026-04-21T00:00:00.000Z",
+      marketPrice: 22.06,
+      currency: "USD",
+      priceType: "holofoil",
+      priceSource: "TCGplayer Market",
+    },
+  ];
+  const storedPayload = {
+    payloadVersion: 5,
+    externalPricingChecked: true,
+    pricing: basePricing,
+    priceVariants: [
+      {
+        key: "raw",
+        label: "Raw",
+        currency: "USD",
+        currentPrice: 22.06,
+        sourceLabel: "TCGplayer Market",
+        updatedAt: "2026-04-21T00:00:00.000Z",
+        metrics: { market: 22.06 },
+      },
+    ],
+    historySeries: [
+      {
+        key: "raw",
+        label: "Holofoil",
+        currency: "USD",
+        sourceLabel: "TCGplayer Market",
+        color: "#ff8a4c",
+        points: [{ capturedAt: "2026-04-21T00:00:00.000Z", price: 22.06 }],
+      },
+    ],
+  };
+
+  const presentation = buildPricingPresentation(basePricing, history, storedPayload);
+
+  assert.equal(presentation.pricing.currentPrice, null);
+  assert.equal(presentation.pricing.sourceLabel, "PriceCharting Unavailable");
+  assert.deepEqual(presentation.priceVariants, []);
+  assert.deepEqual(presentation.historySeries, []);
+  assert.equal(presentation.marketSourceUrl, null);
+});
+
 test("pricecharting candidate scoring rejects loose cross-card matches like Mewtwo and Mew GX for Mewtwo 52", () => {
   const source = readFile("workers/pricing-service/src/lib/priceCharting.ts");
   const helperBlock = extractBetween(source, "function normalizeQueryPart", "async function resolveProductPage");

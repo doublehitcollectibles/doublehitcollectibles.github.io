@@ -738,6 +738,39 @@ function hasPriceChartingPrimarySource(storedPayload: StoredPricePayload | null)
   return rawSource.includes("pricecharting") || marketSourceUrl.includes("pricecharting.com");
 }
 
+function isPriceChartingSourceLabel(value: string | null | undefined): boolean {
+  return String(value || "").trim().toLowerCase().includes("pricecharting");
+}
+
+function filterPriceChartingVariants(
+  variants: PokemonPriceVariant[] | null | undefined,
+): PokemonPriceVariant[] {
+  return Array.isArray(variants)
+    ? variants.filter((variant) => isPriceChartingSourceLabel(variant?.sourceLabel))
+    : [];
+}
+
+function filterPriceChartingHistorySeries(
+  historySeries: PokemonPriceHistorySeries[] | null | undefined,
+): PokemonPriceHistorySeries[] {
+  return Array.isArray(historySeries)
+    ? historySeries.filter((series) => isPriceChartingSourceLabel(series?.sourceLabel))
+    : [];
+}
+
+function buildUnavailablePriceChartingPricing(
+  basePricing: PokemonCardSummary["pricing"],
+): PokemonCardSummary["pricing"] {
+  return {
+    priceType: "raw",
+    currency: basePricing.currency || "USD",
+    currentPrice: null,
+    sourceLabel: "PriceCharting Unavailable",
+    metrics: {},
+    updatedAt: null,
+  };
+}
+
 function hasCurrentStoredPricePayload(storedPayload: StoredPricePayload | null): boolean {
   if (!hasRenderableStoredPricePayload(storedPayload)) {
     return false;
@@ -840,20 +873,26 @@ function buildPricingPresentation(
   history: PokemonHistoryPoint[],
   storedPayload?: StoredPricePayload | null,
 ) {
-  const storedHistorySeries = storedPayload?.historySeries || [];
-  const externalVariants = (storedPayload?.priceVariants || []).map((variant) => enrichVariantUpdatedAt(variant, storedHistorySeries));
-  const baseRawVariant = buildRawVariant(basePricing);
+  const storedHistorySeries = filterPriceChartingHistorySeries(storedPayload?.historySeries || []);
+  const externalVariants = filterPriceChartingVariants(storedPayload?.priceVariants || []).map((variant) =>
+    enrichVariantUpdatedAt(variant, storedHistorySeries),
+  );
+  const suppressBaseFallback = Boolean(storedPayload?.externalPricingChecked);
+  const baseRawVariant = suppressBaseFallback ? null : buildRawVariant(basePricing);
   const externalRawVariant = externalVariants.find((variant) => variant.key === "raw") || null;
   const preferExternalRaw = Boolean(externalRawVariant);
   const rawVariant = preferExternalRaw ? externalRawVariant : baseRawVariant || externalRawVariant;
   const otherVariants = externalVariants.filter((variant) => variant.key !== "raw");
   const priceVariants = [rawVariant, ...otherVariants].filter(Boolean) as PokemonPriceVariant[];
 
-  const pricing =
-    rawVariant && (preferExternalRaw || basePricing.currentPrice == null)
+  const pricing = rawVariant
+    ? rawVariant && (preferExternalRaw || basePricing.currentPrice == null)
       ? buildPricingFromVariant(rawVariant)
+      : basePricing
+    : suppressBaseFallback
+      ? buildUnavailablePriceChartingPricing(basePricing)
       : basePricing;
-  const snapshotHistorySeries = buildSnapshotHistorySeries(history, pricing);
+  const snapshotHistorySeries = suppressBaseFallback ? [] : buildSnapshotHistorySeries(history, pricing);
   const rawHistorySeries =
     preferExternalRaw && storedHistorySeries.find((series) => series.key === "raw")
       ? [storedHistorySeries.find((series) => series.key === "raw") as PokemonPriceHistorySeries]
@@ -865,7 +904,10 @@ function buildPricingPresentation(
     pricing,
     priceVariants,
     historySeries,
-    marketSourceUrl: storedPayload?.marketSourceUrl ?? null,
+    marketSourceUrl:
+      String(storedPayload?.marketSourceUrl || "").trim().toLowerCase().includes("pricecharting.com")
+        ? storedPayload?.marketSourceUrl ?? null
+        : null,
   };
 }
 
