@@ -100,7 +100,8 @@
     font-size: rem(18px);
     padding: 0 rem(15px);
 
-    a {
+    a,
+    span {
       color: $accentDark;
     }
   }
@@ -135,7 +136,8 @@
       line-height: rem(26px);
     }
 
-    .tags a {
+    .tags a,
+    .tags span {
       height: rem(30px);
       line-height: rem(26px);
       color: $accentDark;
@@ -145,7 +147,10 @@
       display: inline-block;
       margin: 0 rem(10px) rem(10px) 0;
       z-index: 50;
+      cursor: default;
+    }
 
+    .tags a {
       &:hover {
         color: $primaryDark;
         background: $accentDark;

@@ -50,9 +50,7 @@ layout: main
         {% for post in posts offset: offset %}
             <article class="box-item">
                 <span class="category">
-                    <a href="{{ site.baseurl }}/{{ site.categories_folder | default: 'category' }}/{{ post.category }}">
-                        <span>{{ post.category }}</span>
-                    </a>
+                    <span>{{ post.category }}</span>
                 </span>
                 <div class="box-body">
                     <a class="cover" href="{{ post.url | prepend: site.baseurl }}">
@@ -91,7 +89,7 @@ layout: main
                         <div class="tags">
                             {% for tag in post.tags %}
                                 {% if tag != "" %}
-                                    <a href="{{ site.baseurl}}/tags/#{{tag | slugify }}">#{{ tag }}</a>
+                                    <span>#{{ tag }}</span>
                                 {% endif %}
                             {% endfor %}
                         </div>

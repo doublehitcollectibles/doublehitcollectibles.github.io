@@ -15,14 +15,7 @@ menu:
     url: /collection
   - title: About
     url: /about
-  - title: Contact
-    url: /contact
-  - title: Feed
-    url: /feed.xml
 pokemon_api_base_url: https://doublehit-pricing-service.0x00c0de.workers.dev
 email:
 # See: https://disqus.com/
 disqus_username:
-# Contact Form Setting
-# See: https://formspree.io/
-formspree_form_id:

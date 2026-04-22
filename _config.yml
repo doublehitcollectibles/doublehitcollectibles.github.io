@@ -16,17 +16,10 @@ menu:
     url: /collection
   - title: About
     url: /about
-  - title: Contact
-    url: /contact
-  - title: Feed
-    url: /feed.xml
 pokemon_api_base_url: https://doublehit-pricing-service.0x00c0de.workers.dev
 email:
 # See: https://disqus.com/
 disqus_username:
-# Contact Form Setting
-# See: https://formspree.io/
-formspree_form_id:
 
 
 # Social Media Settings
@@ -51,8 +44,6 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://doublehitcollectibles.github.io" # the base hostname & protocol for your site
 google_analytics: "UA-XXXXXXXX-X"
 language: "en"
-categories_folder: category
-sent_message_url: "/contact/message-sent/"
 
 
 # Build settings
