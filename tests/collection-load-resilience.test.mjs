@@ -159,7 +159,7 @@ test("selectCard can skip the live refresh when background updates are responsib
   assert.equal(state.selectedCard.id, "sm70");
 });
 
-test("refreshOwnedCardsInBackground refreshes tracked cards sequentially and updates the selected detail", async () => {
+test("refreshOwnedCardsInBackground refreshes tracked cards in staggered batches and updates the selected detail", async () => {
   const source = readFile("assets/js/collection.js");
   const helperBlock = extractBetween(source, "function buildWorkerStatusMessage", "async function loadCollection");
   const state = {
@@ -193,7 +193,7 @@ test("refreshOwnedCardsInBackground refreshes tracked cards sequentially and upd
     "fetchWorkerCustomCard",
     "normalizeCollectionCardRecord",
     "console",
-    `const OWNED_CARD_REFRESH_DELAY_MS = 0; ${helperBlock}; return { refreshOwnedCardsInBackground };`,
+    `${helperBlock}; return { refreshOwnedCardsInBackground };`,
   );
   const { refreshOwnedCardsInBackground } = buildHelpers(
     state,
@@ -242,8 +242,8 @@ test("refreshOwnedCardsInBackground refreshes tracked cards sequentially and upd
   assert.equal(state.selectedCard.refreshed, true);
   assert.equal(detailRenders.length, 1);
   assert.ok(summarySnapshots.length >= 2);
-  assert.match(statuses[0].message, /Loading cached tracked cards first, then refreshing 0\/2/);
-  assert.match(statuses.at(-1).message, /Refreshed all 2 tracked cards/);
+  assert.match(statuses[0].message, /Loading cached tracked cards first, then refreshing 0\/2 in staggered 8-card batches/);
+  assert.match(statuses.at(-1).message, /Refreshed all 2 tracked cards with staggered 8-card batches/);
 });
 
 test("loadCollection selects cached data first and then starts the staggered owned-card refresh queue", () => {
