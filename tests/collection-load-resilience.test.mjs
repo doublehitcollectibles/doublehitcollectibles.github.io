@@ -159,6 +159,90 @@ test("selectCard can skip the live refresh when background updates are responsib
   assert.equal(state.selectedCard.id, "sm70");
 });
 
+test("selectCard and syncCardAcrossCollections keep duplicate raw and psa10 entries separate", async () => {
+  const source = readFile("assets/js/collection.js");
+  const helperBlock = extractBetween(source, "function clearSelectedCard", "async function loadCollection");
+  const state = {
+    ownedCards: [
+      {
+        id: "sm70",
+        kind: "api",
+        title: "Shining Ho-Oh",
+        ownership: { id: 1, ownershipPriceVariant: "raw" },
+      },
+      {
+        id: "sm70",
+        kind: "api",
+        title: "Shining Ho-Oh PSA 10",
+        ownership: { id: 2, ownershipPriceVariant: "psa10" },
+      },
+    ],
+    searchResults: [],
+    selectedCard: null,
+    inlineDetailTarget: null,
+    inlineDetailCardId: null,
+    selectionRequestId: 0,
+  };
+  const buildHelpers = new Function(
+    "state",
+    "apiBase",
+    "renderAllCardGrids",
+    "renderDetail",
+    "fetchWorkerCard",
+    "isPriceChartingCardRecord",
+    "fetchWorkerCustomCard",
+    "renderStatus",
+    "normalizeCollectionCardRecord",
+    `${helperBlock}; return { selectCard, syncCardAcrossCollections };`,
+  );
+  const { selectCard, syncCardAcrossCollections } = buildHelpers(
+    state,
+    "https://worker.example",
+    () => {},
+    () => {},
+    async (_cardId, ownership) => ({
+      id: "sm70",
+      kind: "api",
+      title: ownership?.ownershipPriceVariant === "psa10" ? "Shining Ho-Oh PSA 10" : "Shining Ho-Oh",
+      ownership,
+      instanceKey: `owned:${ownership?.id}`,
+      refreshed: true,
+    }),
+    () => false,
+    async () => {
+      throw new Error("not used");
+    },
+    () => {},
+    (card) => ({
+      ...card,
+      instanceKey:
+        card.instanceKey ||
+        (card.ownership?.id != null ? `owned:${card.ownership.id}` : `card::${card.id}`),
+    }),
+  );
+
+  await selectCard(state.ownedCards[1], {
+    inlineTarget: "owned",
+    refreshLive: true,
+    forceRefresh: true,
+  });
+
+  assert.equal(state.inlineDetailCardId, "owned:2");
+  assert.equal(state.selectedCard.ownership.id, 2);
+
+  syncCardAcrossCollections({
+    id: "sm70",
+    kind: "api",
+    title: "Shining Ho-Oh PSA 10",
+    ownership: { id: 2, ownershipPriceVariant: "psa10" },
+    instanceKey: "owned:2",
+    refreshedAgain: true,
+  });
+
+  assert.equal(state.ownedCards[0].refreshedAgain, undefined);
+  assert.equal(state.ownedCards[1].refreshedAgain, true);
+});
+
 test("refreshOwnedCardsInBackground refreshes tracked cards in staggered batches and updates the selected detail", async () => {
   const source = readFile("assets/js/collection.js");
   const helperBlock = extractBetween(source, "function buildWorkerStatusMessage", "async function loadCollection");

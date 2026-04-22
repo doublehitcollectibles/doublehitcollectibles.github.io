@@ -215,7 +215,7 @@
       return { activeCardId: null, detailCard: null };
     }
 
-    const matchingCard = cards.find((card) => card.id === activeCardId) || null;
+    const matchingCard = cards.find((card) => getCardInstanceKey(card) === activeCardId) || null;
 
     if (!matchingCard) {
       return { activeCardId: null, detailCard: null };
@@ -223,7 +223,7 @@
 
     return {
       activeCardId,
-      detailCard: state.selectedCard?.id === activeCardId ? state.selectedCard : matchingCard,
+      detailCard: getCardInstanceKey(state.selectedCard) === activeCardId ? state.selectedCard : matchingCard,
     };
   }
 
@@ -979,6 +979,7 @@
       number: normalizeDisplayText(card?.number),
       image: displayImage,
       thumbnail: displayThumbnail,
+      instanceKey: normalizeDisplayText(card?.instanceKey) || getCardInstanceKey(card),
     };
   }
 
@@ -1201,7 +1202,7 @@
         return `
           <article
             class="collection-card collection-card--vertical${isSelected ? " collection-card--selected" : ""}"
-            data-card-id="${escapeHtml(card.id)}"
+            data-card-id="${escapeHtml(getCardInstanceKey(card))}"
           >
             <div class="collection-card-media">
               ${card.thumbnail ? `<img src="${escapeHtml(card.thumbnail)}" alt="${escapeHtml(displayTitle)}" loading="lazy">` : ""}
@@ -1236,14 +1237,14 @@
           return detailCard ? renderInlineDetail(detailCard, item.span, targetKey) : "";
         }
 
-        return renderCardMarkup(item.card, item.card.id === activeCardId);
+        return renderCardMarkup(item.card, getCardInstanceKey(item.card) === activeCardId);
       })
       .join("");
 
     Array.from(target.querySelectorAll("[data-card-id]")).forEach((element) => {
       element.addEventListener("click", () => {
         const cardId = element.getAttribute("data-card-id");
-        const selected = cards.find((card) => card.id === cardId);
+        const selected = cards.find((card) => getCardInstanceKey(card) === cardId);
 
         if (state.inlineDetailTarget === targetKey && state.inlineDetailCardId === cardId) {
           clearSelectedCard();
@@ -1419,7 +1420,8 @@
   }
 
   function syncCardAcrossCollections(updatedCard) {
-    const replaceCard = (card) => (card.id === updatedCard.id ? updatedCard : card);
+    const updatedCardKey = getCardInstanceKey(updatedCard);
+    const replaceCard = (card) => (getCardInstanceKey(card) === updatedCardKey ? updatedCard : card);
     state.ownedCards = state.ownedCards.map(replaceCard);
     state.searchResults = state.searchResults.map(replaceCard);
   }
@@ -1443,6 +1445,28 @@
     }
 
     return `Worker-backed mode active. Double Hit Collectibles loads cached tracked cards first, then applies staggered ${batchSize}-card live-refresh batches across the collection while still allowing click-to-refresh updates for individual cards.`;
+  }
+
+  function getCardInstanceKey(card) {
+    const ownership = card?.ownership || card || {};
+    const ownershipId = ownership?.id;
+
+    if (ownershipId != null && ownershipId !== "") {
+      return `owned:${ownershipId}`;
+    }
+
+    const baseId =
+      normalizeDisplayText(card?.id) ||
+      normalizeDisplayText(ownership?.cardId) ||
+      normalizeDisplayText(card?.cardName) ||
+      normalizeDisplayText(card?.title) ||
+      "collection-card";
+    const sourceKey = normalizeDisplayText(card?.kind || ownership?.source || "card");
+    const priceTypeKey = normalizeDisplayText(ownership?.priceType || card?.pricing?.priceType || "auto");
+    const variantKey = normalizeOwnershipPriceVariant(ownership?.ownershipPriceVariant);
+    const labelKey = normalizeDisplayText(ownership?.label || card?.title || card?.cardName || "");
+
+    return [sourceKey, baseId, priceTypeKey, variantKey, labelKey].join("::");
   }
 
   function buildDetailRefreshWarning(card, error) {
@@ -1530,11 +1554,11 @@
     renderSummary(state.ownedCards);
     renderAllCardGrids();
 
-    if (state.selectedCard?.id === updatedCard.id) {
+    if (getCardInstanceKey(state.selectedCard) === getCardInstanceKey(updatedCard)) {
       state.selectedCard = updatedCard;
 
       if (state.inlineDetailTarget === "owned") {
-        state.inlineDetailCardId = updatedCard.id;
+        state.inlineDetailCardId = getCardInstanceKey(updatedCard);
       }
 
       renderDetail(updatedCard);
@@ -1604,7 +1628,7 @@
 
     if (inlineTarget) {
       state.inlineDetailTarget = inlineTarget;
-      state.inlineDetailCardId = card.id;
+      state.inlineDetailCardId = getCardInstanceKey(card);
     }
 
     state.selectedCard = card;
@@ -1633,7 +1657,7 @@
     state.selectedCard = selectedCard;
     syncCardAcrossCollections(selectedCard);
     if (inlineTarget) {
-      state.inlineDetailCardId = selectedCard.id;
+      state.inlineDetailCardId = getCardInstanceKey(selectedCard);
     }
     renderAllCardGrids();
     renderDetail(selectedCard);
@@ -1724,7 +1748,7 @@
 
     if (
       state.inlineDetailTarget === "search" &&
-      !state.searchResults.some((card) => card.id === state.inlineDetailCardId)
+      !state.searchResults.some((card) => getCardInstanceKey(card) === state.inlineDetailCardId)
     ) {
       state.inlineDetailTarget = null;
       state.inlineDetailCardId = null;
