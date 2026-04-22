@@ -112,24 +112,31 @@ footer {
 
 body.about-page {
   footer {
-    max-width: rem(500px);
-    background: rgba(8, 14, 24, 0.16);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 rem(10px) rem(24px) rgba(0, 0, 0, 0.14);
-    backdrop-filter: blur(2px);
-    padding: rem(16px) rem(14px);
-    margin-top: rem(38px);
-    margin-bottom: rem(90px);
+    width: calc(100% - 48px);
+    max-width: rem(1280px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: rem(28px);
+    background:
+      radial-gradient(circle at top right, rgba(255, 214, 68, 0.12), transparent 42%),
+      linear-gradient(180deg, rgba(8, 16, 20, 0.72), rgba(8, 16, 20, 0.72));
+    box-shadow: 0 rem(24px) rem(60px) rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(rem(18px));
+    padding: rem(20px) rem(24px);
+    margin-top: rem(24px);
+    margin-bottom: rem(80px);
 
     @include media(">=sm") {
-      margin-top: rem(64px);
-      padding: rem(18px) rem(20px);
+      margin-top: rem(24px);
     }
 
     p,
     a {
-      color: rgba(255, 255, 255, 0.86);
+      color: rgba(246, 242, 232, 0.82);
       font-weight: 400;
+    }
+
+    svg {
+      fill: rgba(246, 242, 232, 0.82);
     }
 
     a:hover {
@@ -139,6 +146,17 @@ body.about-page {
 
     .footer-credit a {
       font-weight: 500;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  body.about-page {
+    footer {
+      width: calc(100% - 32px);
+      padding: rem(16px);
+      margin-top: rem(16px);
+      margin-bottom: rem(64px);
     }
   }
 }
