@@ -9,7 +9,9 @@
 
   img {
     width: rem(150px);
+    border-radius: rem(4px);
     margin: 0 rem(20px) rem(20px);
+    object-fit: cover;
 
     @include media(">=sm") {
       width: rem(200px);
