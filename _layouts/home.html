@@ -23,21 +23,29 @@ layout: main
         {% else %}
             {% assign featured_image = featured.image | relative_url %}
         {% endif %}
-        <section class="hero" style="background-image: url({{ featured_image }})">
+        <section
+            class="hero"
+            style="background-image: url({{ featured_image }})"
+            data-latest-story-hero
+            data-api-base="{{ site.pokemon_api_base_url | default: '' }}"
+            data-story-template-url="{{ '/story/' | relative_url }}"
+            data-fallback-published-at="{{ featured.date | date_to_xmlschema }}"
+            data-fallback-image="{{ featured_image }}"
+        >
             <div class="pixels"></div>
             <div class="gradient"></div>
             <div class="content">
-                <time datetime="{{ featured.date | date_to_xmlschema }}" class="date">
+                <time datetime="{{ featured.date | date_to_xmlschema }}" class="date" data-latest-story-date>
                     {% if site.date_format == nil %}
                         {{ featured.date | date: "%m.%d.%Y" }}
                     {% else %}
                         {{ featured.date | date: site.date_format }}
                     {% endif %}
                 </time>
-                <h1 class="title" data-pretext-balance data-pretext-target-lines="3">{{ featured.title }}</h1>
-                <p class="description" data-pretext-measure>{{ featured.subtitle }}</p>
+                <h1 class="title" data-pretext-balance data-pretext-target-lines="3" data-latest-story-title>{{ featured.title }}</h1>
+                <p class="description" data-pretext-measure data-latest-story-description>{{ featured.subtitle }}</p>
                 <div class="buttons">
-                    <a href="{{ featured.url | prepend: site.baseurl }}" role="button" class="button">
+                    <a href="{{ featured.url | prepend: site.baseurl }}" role="button" class="button" data-latest-story-link>
                         <svg><use xlink:href="#icon-read"></use></svg>
                         <span>{{ site.translations.button.read_now | default: "Read Now" }}</span>
                     </a>
