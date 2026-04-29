@@ -5,33 +5,31 @@ layout: compress
 <!DOCTYPE html>
 <html lang="{{ site.language }}" class="no-js">
     {% include head.html %}
-    <body class="has-push-menu story-public-page{% if page.page_class %} {{ page.page_class }}{% endif %}" data-baseurl="{{ site.baseurl }}" data-admin-api-base="{{ site.pokemon_api_base_url | default: '' }}">
+    <body class="has-push-menu story-public-page welcome-post-page" data-baseurl="{{ site.baseurl }}" data-admin-api-base="{{ site.pokemon_api_base_url | default: '' }}">
         {% include svg-icons.html %}
         {% include header.html %}
 
         <section
-            class="story-public-app"
+            class="post {% if site.two_columns_layout %}two-columns{% else %}one-column{% endif %} welcome-post-page__post story-public-post-shell story-public-app"
             data-story-public-app
             data-api-base="{{ site.pokemon_api_base_url | default: '' }}"
             data-story-index-url="{{ '/stories/' | relative_url }}"
         >
-            <section class="post {% if site.two_columns_layout %}two-columns{% else %}one-column{% endif %} story-public-post-shell">
-                <article role="article" class="post-content story-public-content" data-story-public-article hidden>
-                    <p class="post-info">
-                        <svg class="icon-calendar" id="date"><use xlink:href="#icon-calendar"></use></svg>
-                        <time class="date" data-story-public-date datetime="">Loading story...</time>
-                        <svg id="clock" class="icon-clock"><use xlink:href="#icon-clock"></use></svg>
-                        <span data-story-public-minutes>1 min read</span>
-                    </p>
-                    <h1 class="post-title" data-pretext-balance data-pretext-target-lines="3" data-story-public-title></h1>
-                    <p class="post-subtitle" data-pretext-measure data-story-public-subtitle></p>
-                    <img class="post-cover" data-story-public-cover alt="" hidden>
-                    <div class="story-rendered-body" data-story-public-body></div>
-                    <p class="story-public-return">
-                        <a href="{{ '/stories/' | relative_url }}">All Stories</a>
-                    </p>
-                </article>
-            </section>
+            <article role="article" class="post-content welcome-post-page__content story-public-content" data-story-public-article hidden>
+                <p class="post-info">
+                    <svg class="icon-calendar" id="date"><use xlink:href="#icon-calendar"></use></svg>
+                    <time class="date" data-story-public-date datetime="">Loading story...</time>
+                    <svg id="clock" class="icon-clock"><use xlink:href="#icon-clock"></use></svg>
+                    <span data-story-public-minutes>1 min read</span>
+                </p>
+                <h1 class="post-title" data-pretext-balance data-pretext-target-lines="3" data-story-public-title></h1>
+                <p class="post-subtitle" data-pretext-measure data-story-public-subtitle></p>
+                <img class="post-cover" data-story-public-cover alt="" hidden>
+                <div class="story-rendered-body" data-story-public-body></div>
+                <p class="story-public-return">
+                    <a href="{{ '/stories/' | relative_url }}">All Stories</a>
+                </p>
+            </article>
 
             <section class="story-public-state" data-story-public-state>
                 Loading story...
@@ -52,6 +50,7 @@ layout: compress
             </div>
             <span class="time-remaining"></span>
         </div>
+        {% include recommendation.html %}
 
         {% include subscription.html %}
         {% include author.html with_share=true %}

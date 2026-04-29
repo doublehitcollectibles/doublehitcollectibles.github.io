@@ -1,9 +1,20 @@
+{% assign has_stories_link = false %}
+
 <ul>
   {% for item in site.menu %}
     {% if item.title and item.url %}
+      {% assign normalized_title = item.title | downcase %}
+      {% if normalized_title == "stories" %}
+        {% assign has_stories_link = true %}
+      {% endif %}
       <li>
         <a href="{{ site.url }}{{ site.baseurl }}{{ item.url }}">{{ item.title }}</a>
       </li>
     {% endif %}
   {% endfor %}
+  {% unless has_stories_link %}
+    <li>
+      <a href="{{ site.url }}{{ site.baseurl }}/stories">Stories</a>
+    </li>
+  {% endunless %}
 </ul>
