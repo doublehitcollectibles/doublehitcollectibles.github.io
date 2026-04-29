@@ -3,15 +3,17 @@
   max-width: rem(440px);
   margin: 0 0 rem(24px);
   padding: rem(16px) rem(18px);
-  border: 1px solid rgba(255, 118, 132, 0.88);
+  border: 1px solid rgba(255, 232, 156, 0.36);
   background:
-    linear-gradient(180deg, rgba(44, 7, 12, 0.96), rgba(26, 4, 7, 0.98)),
-    radial-gradient(circle at top right, rgba(255, 86, 110, 0.2), transparent 48%);
+    radial-gradient(circle at top right, rgba(255, 214, 68, 0.16), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(107, 180, 225, 0.14), transparent 46%),
+    linear-gradient(180deg, rgba(8, 16, 20, 0.76), rgba(8, 16, 20, 0.86));
   box-shadow:
-    inset 0 0 0 1px rgba(255, 166, 180, 0.18),
-    0 rem(14px) rem(34px) rgba(10, 0, 2, 0.32);
-  color: #ffd8de;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 rem(14px) rem(34px) rgba(0, 0, 0, 0.28);
+  color: #f6f2e8;
   font-family: "Courier New", "Lucida Console", Monaco, monospace;
+  backdrop-filter: blur(rem(18px));
 }
 
 .visitor-widget-row {
@@ -34,16 +36,16 @@
 }
 
 .visitor-label {
-  color: #ffd1d8;
-  text-shadow: 0 0 rem(8px) rgba(255, 112, 130, 0.2);
+  color: rgba(246, 242, 232, 0.9);
+  text-shadow: 0 0 rem(8px) rgba(255, 232, 156, 0.14);
 }
 
 .visitor-value {
   display: inline-flex;
   justify-content: flex-end;
   min-width: 7ch;
-  color: #ff576c;
-  text-shadow: 0 0 rem(10px) rgba(255, 87, 108, 0.25);
+  color: #ffe89c;
+  text-shadow: 0 0 rem(10px) rgba(255, 214, 68, 0.22);
 }
 
 .visitor-digit {
@@ -51,7 +53,7 @@
 }
 
 .visitor-digit-dim {
-  color: rgba(255, 87, 108, 0.22);
+  color: rgba(255, 232, 156, 0.24);
   text-shadow: none;
 }
 
@@ -60,13 +62,14 @@
 }
 
 .main-page .visitor-widget {
-  border-color: rgba(255, 118, 132, 0.72);
+  border-color: rgba(255, 232, 156, 0.36);
 }
 
 body.about-page .visitor-widget {
   background:
-    linear-gradient(180deg, rgba(45, 9, 14, 0.92), rgba(27, 6, 9, 0.96)),
-    radial-gradient(circle at top right, rgba(255, 178, 102, 0.16), transparent 48%);
+    radial-gradient(circle at top right, rgba(255, 214, 68, 0.16), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(107, 180, 225, 0.14), transparent 46%),
+    linear-gradient(180deg, rgba(8, 16, 20, 0.76), rgba(8, 16, 20, 0.86));
 }
 
 @media (max-width: 640px) {
