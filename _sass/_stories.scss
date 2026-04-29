@@ -226,11 +226,6 @@
   color: #a51f1f;
 }
 
-.story-index-page .post.story-index-page {
-  max-width: rem(1120px);
-  margin: 0 auto;
-}
-
 .story-index-app {
   padding: rem(24px) rem(20px) rem(80px);
 }
@@ -339,6 +334,72 @@
   }
 }
 
+body.story-index-page .story-index-post-shell {
+  min-height: rem(420px);
+}
+
+body.story-index-page .story-index-page__content {
+  width: 100%;
+}
+
+body.story-index-page .story-index-app {
+  padding: 0;
+  gap: rem(24px);
+}
+
+body.story-index-page .story-index-eyebrow {
+  margin-bottom: rem(12px);
+  color: var(--collection-text-label);
+  font-size: rem(14px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+body.story-index-page .story-index-status {
+  max-width: rem(760px);
+  margin: rem(34px) auto 0;
+  color: var(--collection-text-soft);
+}
+
+body.story-index-page .story-index-status[data-mode="error"] {
+  color: #ffb0a8;
+}
+
+body.story-index-page .story-index-grid {
+  grid-template-columns: repeat(auto-fit, minmax(rem(260px), 1fr));
+  gap: rem(20px);
+  width: calc(100% - 96px);
+  max-width: rem(1120px);
+  margin: rem(42px) auto 0;
+}
+
+body.story-index-page .story-index-card {
+  background:
+    radial-gradient(circle at top left, rgba(255, 216, 74, 0.14), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 rem(18px) rem(48px) rgba(0, 0, 0, 0.22);
+}
+
+body.story-index-page .story-index-cover {
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 214, 68, 0.28), transparent 30%),
+    linear-gradient(135deg, rgba(33, 76, 82, 0.88), rgba(8, 16, 20, 0.94));
+}
+
+body.story-index-page .story-index-card-copy time,
+body.story-index-page .story-index-card-copy p {
+  color: var(--collection-text-soft);
+}
+
+body.story-index-page .story-index-card-copy h2 a {
+  color: #fff4cf;
+}
+
+body.story-index-page .story-index-read-link {
+  color: #ffd84a;
+}
+
 .admin-menu-links [hidden] {
   display: none;
 }
@@ -358,5 +419,11 @@
   .story-template-post {
     border-radius: rem(22px);
     padding: rem(24px);
+  }
+
+  body.story-index-page .story-index-grid {
+    width: calc(100% - 32px);
+    grid-template-columns: 1fr;
+    margin-top: rem(28px);
   }
 }
