@@ -14,6 +14,8 @@ menu:
     url: /
   - title: Collection
     url: /collection
+  - title: Stories
+    url: /stories
   - title: About
     url: /about
 pokemon_api_base_url: https://doublehit-pricing-service.0x00c0de.workers.dev
