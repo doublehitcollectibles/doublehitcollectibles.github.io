@@ -14,6 +14,14 @@ import { getOwnedCollection, getTrackedPokemonEntries } from "./lib/ownedCollect
 import { normalizeCardQuery } from "./lib/query";
 import { json } from "./lib/response";
 import {
+  getVisitorStats,
+  leaveVisitor,
+  normalizeVisitorSiteKey,
+  parseVisitorLeavePayload,
+  parseVisitorTrackPayload,
+  trackVisitor,
+} from "./lib/visitors";
+import {
   getPriceChartingCollectibleDetail,
   getPokemonCardDetail,
   searchCollectibleCards,
@@ -40,6 +48,28 @@ function corsHeaders(): HeadersInit {
     "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
   };
+}
+
+function resolveVisitorSiteKey(request: Request, explicitSiteKey?: unknown): string {
+  const explicit = String(explicitSiteKey ?? "").trim();
+
+  if (explicit) {
+    return normalizeVisitorSiteKey(explicit);
+  }
+
+  const origin = request.headers.get("origin");
+
+  if (origin) {
+    return normalizeVisitorSiteKey(origin);
+  }
+
+  const referer = request.headers.get("referer");
+
+  if (referer) {
+    return normalizeVisitorSiteKey(referer);
+  }
+
+  return normalizeVisitorSiteKey("doublehitcollectibles.github.io");
 }
 
 function normalizeEntrySource(value: unknown): "api" | "custom" {
@@ -483,6 +513,43 @@ async function handlePriceChartingItemDetail(request: Request, env: Env): Promis
   return json({ card }, { headers: corsHeaders() });
 }
 
+async function handleVisitorStatsRequest(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const siteKey = resolveVisitorSiteKey(request, url.searchParams.get("siteKey"));
+  const stats = await getVisitorStats(env.PRICING_DB, siteKey);
+  return json(stats, { headers: corsHeaders() });
+}
+
+async function handleVisitorTrackRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    const fallbackSiteKey = resolveVisitorSiteKey(request);
+    const body = await request.json().catch(() => ({}));
+    const payload = parseVisitorTrackPayload(body, fallbackSiteKey);
+    const stats = await trackVisitor(env.PRICING_DB, payload);
+    return json(stats, { headers: corsHeaders() });
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Invalid visitor track payload." },
+      { status: 400, headers: corsHeaders() },
+    );
+  }
+}
+
+async function handleVisitorLeaveRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    const fallbackSiteKey = resolveVisitorSiteKey(request);
+    const body = await request.json().catch(() => ({}));
+    const payload = parseVisitorLeavePayload(body, fallbackSiteKey);
+    const stats = await leaveVisitor(env.PRICING_DB, payload);
+    return json(stats, { headers: corsHeaders() });
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Invalid visitor leave payload." },
+      { status: 400, headers: corsHeaders() },
+    );
+  }
+}
+
 const worker: ExportedHandler<Env, PricingJob> = {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
@@ -580,6 +647,18 @@ const worker: ExportedHandler<Env, PricingJob> = {
 
     if (request.method === "GET" && url.pathname === "/api/pricecharting/item") {
       return handlePriceChartingItemDetail(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/visitors") {
+      return handleVisitorStatsRequest(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/visitors/track") {
+      return handleVisitorTrackRequest(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/visitors/leave") {
+      return handleVisitorLeaveRequest(request, env);
     }
 
     if (request.method === "GET" && pathParts[0] === "api" && pathParts[1] === "pokemon" && pathParts[2] === "cards" && pathParts[3]) {

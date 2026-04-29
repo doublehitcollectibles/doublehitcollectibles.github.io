@@ -32,6 +32,8 @@
       {% endif %}
     </p>
 
+    {% include visitor-widget.html %}
+
     {% include links.html %}
 
     <p class="footer-credit">
@@ -84,6 +86,7 @@
 <!-- Include the website scripts -->
 <script src="{{ '/assets/js/scripts.min.js' | prepend: site.baseurl }}"></script>
 <script src="{{ '/assets/js/pretext-runtime.js' | relative_url }}"></script>
+<script src="{{ '/assets/js/visitor-widget.js' | relative_url }}"></script>
 
 <!-- Include Google Analytics script -->
 {% include stats.html %}
