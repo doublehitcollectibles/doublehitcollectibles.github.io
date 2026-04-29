@@ -7,5 +7,24 @@
           <a href="{{ '/manage-stories/' | relative_url }}" data-admin-required-link>Create Story</a>
         </li>
       </ul>
+      <section class="menu-admin-panel" data-admin-menu-panel>
+        <h3>Admin Login</h3>
+        <p data-admin-menu-message>Sign in to create stories from any page.</p>
+        <form class="menu-admin-form" data-admin-menu-login-form>
+          <label>
+            <span>Username</span>
+            <input type="text" name="username" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Sign In</button>
+        </form>
+        <div class="menu-admin-session" data-admin-menu-session hidden>
+          <p>Signed in as <strong data-admin-menu-username></strong>.</p>
+          <button type="button" data-admin-menu-logout>Sign Out</button>
+        </div>
+      </section>
     </nav>
 </aside>
