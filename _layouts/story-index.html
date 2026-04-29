@@ -1,0 +1,20 @@
+---
+layout: compress
+---
+
+<!DOCTYPE html>
+<html lang="{{ site.language }}" class="no-js">
+    {% include head.html %}
+    <body class="has-push-menu story-index-page welcome-post-page" data-baseurl="{{ site.baseurl }}" data-admin-api-base="{{ site.pokemon_api_base_url | default: '' }}">
+        {% include svg-icons.html %}
+        {% include header.html %}
+
+        <section class="post {% if site.two_columns_layout %}two-columns{% else %}one-column{% endif %} welcome-post-page__post story-index-post-shell">
+            <article role="article" class="post-content welcome-post-page__content story-index-page__content">
+                {{ content }}
+            </article>
+        </section>
+
+        {% include footer.html %}
+    </body>
+</html>
