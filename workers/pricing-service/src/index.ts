@@ -12,6 +12,13 @@ import {
 import { getLatestPricingSummary, listWatchlist, upsertWatchlistEntry } from "./lib/db";
 import { getOwnedCollection, getTrackedPokemonEntries } from "./lib/ownedCollection";
 import { normalizeCardQuery } from "./lib/query";
+import {
+  elapsedMs,
+  logWorkerError,
+  logWorkerEvent,
+  logWorkerRequest,
+  startTimer,
+} from "./lib/observability";
 import { json } from "./lib/response";
 import {
   getVisitorStats,
@@ -293,7 +300,7 @@ async function handleAuthLogin(request: Request, env: Env): Promise<Response> {
     const token = await createSessionToken(env, configuredUsername);
     return json({ ok: true, token, user: { username: configuredUsername } }, { headers: corsHeaders() });
   } catch (error) {
-    console.error("Failed to create admin session token.", error);
+    logWorkerError("auth.session_token.failed", error);
     return json(
       { error: "Admin authentication is misconfigured. Reset the Worker auth secrets and redeploy." },
       { status: 500, headers: corsHeaders() },
@@ -517,6 +524,12 @@ async function handleVisitorStatsRequest(request: Request, env: Env): Promise<Re
   const url = new URL(request.url);
   const siteKey = resolveVisitorSiteKey(request, url.searchParams.get("siteKey"));
   const stats = await getVisitorStats(env.PRICING_DB, siteKey);
+  logWorkerEvent("visitor.stats", {
+    siteKey,
+    visits: stats.visits,
+    uniqueVisitors: stats.uniqueVisitors,
+    onSite: stats.onSite,
+  });
   return json(stats, { headers: corsHeaders() });
 }
 
@@ -526,8 +539,16 @@ async function handleVisitorTrackRequest(request: Request, env: Env): Promise<Re
     const body = await request.json().catch(() => ({}));
     const payload = parseVisitorTrackPayload(body, fallbackSiteKey);
     const stats = await trackVisitor(env.PRICING_DB, payload);
+    logWorkerEvent("visitor.track", {
+      action: payload.action,
+      siteKey: payload.siteKey,
+      visits: stats.visits,
+      uniqueVisitors: stats.uniqueVisitors,
+      onSite: stats.onSite,
+    });
     return json(stats, { headers: corsHeaders() });
   } catch (error) {
+    logWorkerError("visitor.track.invalid_payload", error);
     return json(
       { error: error instanceof Error ? error.message : "Invalid visitor track payload." },
       { status: 400, headers: corsHeaders() },
@@ -541,8 +562,15 @@ async function handleVisitorLeaveRequest(request: Request, env: Env): Promise<Re
     const body = await request.json().catch(() => ({}));
     const payload = parseVisitorLeavePayload(body, fallbackSiteKey);
     const stats = await leaveVisitor(env.PRICING_DB, payload);
+    logWorkerEvent("visitor.leave", {
+      siteKey: payload.siteKey,
+      visits: stats.visits,
+      uniqueVisitors: stats.uniqueVisitors,
+      onSite: stats.onSite,
+    });
     return json(stats, { headers: corsHeaders() });
   } catch (error) {
+    logWorkerError("visitor.leave.invalid_payload", error);
     return json(
       { error: error instanceof Error ? error.message : "Invalid visitor leave payload." },
       { status: 400, headers: corsHeaders() },
@@ -550,8 +578,7 @@ async function handleVisitorLeaveRequest(request: Request, env: Env): Promise<Re
   }
 }
 
-const worker: ExportedHandler<Env, PricingJob> = {
-  async fetch(request, env, ctx): Promise<Response> {
+async function handleFetchRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
 
@@ -603,7 +630,7 @@ const worker: ExportedHandler<Env, PricingJob> = {
         getAllTrackedPokemonEntries(env)
           .then((entries) => refreshTrackedPokemonCollection(env, entries))
           .catch((error) => {
-            console.error("Background collection refresh failed.", error);
+            logWorkerError("collection.background_refresh.failed", error);
           }),
       );
       return handleCollectionCardsGet(request, env);
@@ -666,23 +693,94 @@ const worker: ExportedHandler<Env, PricingJob> = {
     }
 
     return json({ error: "Not found" }, { status: 404, headers: corsHeaders() });
+}
+
+const worker: ExportedHandler<Env, PricingJob> = {
+  async fetch(request, env, ctx): Promise<Response> {
+    const startedAt = startTimer();
+
+    try {
+      const response = await handleFetchRequest(request, env, ctx);
+      logWorkerRequest(request, response, startedAt);
+      return response;
+    } catch (error) {
+      const url = new URL(request.url);
+
+      logWorkerError("worker.request.error", error, {
+        method: request.method,
+        pathname: url.pathname,
+        durationMs: elapsedMs(startedAt),
+      });
+
+      const response = json({ error: "Internal server error" }, { status: 500, headers: corsHeaders() });
+      logWorkerRequest(request, response, startedAt, { handledException: true });
+      return response;
+    }
   },
 
   async queue(batch, env, ctx): Promise<void> {
+    logWorkerEvent("worker.queue.batch", {
+      batchSize: batch.messages.length,
+    });
+
     for (const message of batch.messages) {
+      const jobStartedAt = startTimer();
+
       ctx.waitUntil(
-        refreshPricingJob(env, message.body).catch((error) => {
-          console.error("Queue refresh failed", error);
-          throw error;
-        }),
+        refreshPricingJob(env, message.body)
+          .then(() => {
+            logWorkerEvent("pricing.refresh.completed", {
+              source: "queue",
+              reason: message.body.reason,
+              force: Boolean(message.body.force),
+              durationMs: elapsedMs(jobStartedAt),
+            });
+          })
+          .catch((error) => {
+            logWorkerError("pricing.refresh.failed", error, {
+              source: "queue",
+              reason: message.body.reason,
+              force: Boolean(message.body.force),
+              durationMs: elapsedMs(jobStartedAt),
+            });
+            throw error;
+          }),
       );
     }
   },
 
   async scheduled(_controller, env, ctx): Promise<void> {
-    ctx.waitUntil(enqueueDueWatchlistRefreshes(env, getPricingConfig(env)));
+    const watchlistStartedAt = startTimer();
+    const collectionStartedAt = startTimer();
+
     ctx.waitUntil(
-      getAllTrackedPokemonEntries(env).then((entries) => refreshTrackedPokemonCollection(env, entries)),
+      enqueueDueWatchlistRefreshes(env, getPricingConfig(env))
+        .then(() => {
+          logWorkerEvent("scheduled.watchlist_refresh.completed", {
+            durationMs: elapsedMs(watchlistStartedAt),
+          });
+        })
+        .catch((error) => {
+          logWorkerError("scheduled.watchlist_refresh.failed", error, {
+            durationMs: elapsedMs(watchlistStartedAt),
+          });
+          throw error;
+        }),
+    );
+    ctx.waitUntil(
+      getAllTrackedPokemonEntries(env)
+        .then((entries) => refreshTrackedPokemonCollection(env, entries))
+        .then(() => {
+          logWorkerEvent("scheduled.collection_refresh.completed", {
+            durationMs: elapsedMs(collectionStartedAt),
+          });
+        })
+        .catch((error) => {
+          logWorkerError("scheduled.collection_refresh.failed", error, {
+            durationMs: elapsedMs(collectionStartedAt),
+          });
+          throw error;
+        }),
     );
   },
 };

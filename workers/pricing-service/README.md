@@ -88,3 +88,25 @@ Set `ADMIN_USERNAME` as a worker environment variable.
 ```bash
 npm run deploy
 ```
+
+## Observability
+
+Workers Logs are enabled in `wrangler.jsonc` with full head sampling for the current traffic level. After deploy, open the Worker in Cloudflare and use **Observability** for persisted invocation logs, custom JSON logs, request status, and timing.
+
+The Worker emits structured events for:
+
+- `worker.request`
+- `visitor.stats`
+- `visitor.track`
+- `visitor.leave`
+- `worker.queue.batch`
+- `pricing.refresh.completed`
+- `pricing.refresh.failed`
+- `scheduled.watchlist_refresh.completed`
+- `scheduled.collection_refresh.completed`
+
+For live debugging from this directory:
+
+```bash
+npx wrangler tail
+```
