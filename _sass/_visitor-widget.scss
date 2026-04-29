@@ -1,5 +1,6 @@
 .visitor-widget {
-  width: min(100%, rem(440px));
+  width: 100%;
+  max-width: rem(440px);
   margin: 0 0 rem(24px);
   padding: rem(16px) rem(18px);
   border: 1px solid rgba(255, 118, 132, 0.88);
@@ -26,7 +27,7 @@
 
 .visitor-label,
 .visitor-value {
-  font-size: clamp(rem(18px), 1.85vw, rem(24px));
+  font-size: rem(18px);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.05em;
@@ -54,6 +55,10 @@
   text-shadow: none;
 }
 
+.visitor-widget-row:last-child .visitor-value {
+  min-width: 6ch;
+}
+
 .main-page .visitor-widget {
   border-color: rgba(255, 118, 132, 0.72);
 }
@@ -71,5 +76,12 @@ body.about-page .visitor-widget {
 
   .visitor-widget-row {
     gap: rem(12px);
+  }
+}
+
+@media (min-width: 960px) {
+  .visitor-label,
+  .visitor-value {
+    font-size: rem(24px);
   }
 }
