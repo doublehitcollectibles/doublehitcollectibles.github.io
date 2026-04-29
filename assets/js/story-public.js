@@ -2,8 +2,9 @@
   var utils = window.DoubleHitStories;
   var detailApp = document.querySelector("[data-story-public-app]");
   var indexApp = document.querySelector("[data-story-index-app]");
+  var latestHero = document.querySelector("[data-latest-story-hero]");
 
-  if (!utils || (!detailApp && !indexApp)) {
+  if (!utils || (!detailApp && !indexApp && !latestHero)) {
     return;
   }
 
@@ -139,6 +140,39 @@
       },
       mainEntityOfPage: storyUrl,
     }, null, 2);
+  }
+
+  function storyTimestamp(story) {
+    var date = new Date(story && (story.publishedAt || story.updatedAt || story.createdAt || story.fallbackPublishedAt) || "");
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  function formatHeroDate(value) {
+    var date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    var month = String(date.getMonth() + 1).padStart(2, "0");
+    var day = String(date.getDate()).padStart(2, "0");
+    var year = String(date.getFullYear());
+    return month + "." + day + "." + year;
+  }
+
+  function latestStory(stories, fallbackPublishedAt) {
+    var latest = {
+      isFallback: true,
+      fallbackPublishedAt: fallbackPublishedAt,
+    };
+
+    (Array.isArray(stories) ? stories : []).forEach(function (story) {
+      if (storyTimestamp(story) > storyTimestamp(latest)) {
+        latest = story;
+      }
+    });
+
+    return latest;
   }
 
   function initDetail() {
@@ -340,6 +374,71 @@
     });
   }
 
+  function initLatestHero() {
+    if (!latestHero) {
+      return;
+    }
+
+    var apiBase = getApiBase(latestHero);
+    var templateUrl = String(latestHero.dataset.storyTemplateUrl || "/story/").trim() || "/story/";
+    var fallbackPublishedAt = String(latestHero.dataset.fallbackPublishedAt || "").trim();
+    var fallbackImage = String(latestHero.dataset.fallbackImage || "").trim();
+    var elements = {
+      date: latestHero.querySelector("[data-latest-story-date]"),
+      title: latestHero.querySelector("[data-latest-story-title]"),
+      description: latestHero.querySelector("[data-latest-story-description]"),
+      link: latestHero.querySelector("[data-latest-story-link]"),
+    };
+
+    function renderHeroStory(story) {
+      if (!story || story.isFallback) {
+        return;
+      }
+
+      var hero = story.heroMedia || null;
+      var heroUrl = hero && hero.url ? resolveMediaUrl(hero.url, apiBase) : fallbackImage;
+      var publishedAt = story.publishedAt || story.updatedAt || story.createdAt || "";
+      var storyUrl = buildStoryUrl(templateUrl, story.slug);
+
+      if (heroUrl) {
+        latestHero.style.backgroundImage = "url(" + JSON.stringify(heroUrl) + ")";
+      }
+
+      if (elements.date) {
+        elements.date.textContent = formatHeroDate(publishedAt);
+        elements.date.setAttribute("datetime", publishedAt);
+      }
+
+      if (elements.title) {
+        elements.title.textContent = story.title || "Untitled Story";
+      }
+
+      if (elements.description) {
+        elements.description.textContent = story.description || story.subtitle || "Read the latest Double Hit Collectibles story.";
+      }
+
+      if (elements.link) {
+        elements.link.href = storyUrl;
+      }
+
+      window.dispatchEvent(new Event("resize"));
+    }
+
+    async function loadLatestHeroStory() {
+      if (!apiBase) {
+        return;
+      }
+
+      var payload = await apiJson(apiBase, "/api/stories");
+      renderHeroStory(latestStory(payload.stories, fallbackPublishedAt));
+    }
+
+    loadLatestHeroStory().catch(function () {
+      // Keep the server-rendered fallback article if the feed is unavailable.
+    });
+  }
+
   initDetail();
   initIndex();
+  initLatestHero();
 })();
