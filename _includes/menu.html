@@ -2,5 +2,10 @@
     <nav id="navigation">
       <h2>Menu</h2>
       {% include links.html %}
+      <ul class="admin-menu-links">
+        <li data-admin-only-link hidden>
+          <a href="{{ '/manage-stories/' | relative_url }}" data-admin-required-link>Create Story</a>
+        </li>
+      </ul>
     </nav>
 </aside>

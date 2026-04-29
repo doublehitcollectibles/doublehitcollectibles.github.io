@@ -21,6 +21,19 @@ import {
 } from "./lib/observability";
 import { json } from "./lib/response";
 import {
+  decodeMediaDataUrl,
+  deleteStoryArticle,
+  getPublishedStoryBySlug,
+  getStoryMedia,
+  insertStoryArticle,
+  insertStoryMedia,
+  listPublishedStories,
+  listStoriesForOwner,
+  parseStoryArticlePayload,
+  parseStoryMediaPayload,
+  updateStoryArticle,
+} from "./lib/stories";
+import {
   getVisitorStats,
   leaveVisitor,
   normalizeVisitorSiteKey,
@@ -520,6 +533,165 @@ async function handlePriceChartingItemDetail(request: Request, env: Env): Promis
   return json({ card }, { headers: corsHeaders() });
 }
 
+async function handleStoryListPublic(_request: Request, env: Env): Promise<Response> {
+  const stories = await listPublishedStories(env.PRICING_DB);
+  return json({ stories }, { headers: corsHeaders() });
+}
+
+async function handleStoryGetPublic(env: Env, slug: string): Promise<Response> {
+  const story = await getPublishedStoryBySlug(env.PRICING_DB, slug);
+
+  if (!story) {
+    return json({ error: "Story not found." }, { status: 404, headers: corsHeaders() });
+  }
+
+  return json({ story }, { headers: corsHeaders() });
+}
+
+async function handleStoryMediaGet(env: Env, id: number): Promise<Response> {
+  const media = await getStoryMedia(env.PRICING_DB, id);
+
+  if (!media) {
+    return json({ error: "Story media not found." }, { status: 404, headers: corsHeaders() });
+  }
+
+  try {
+    const decoded = decodeMediaDataUrl(media);
+    return new Response(decoded.body, {
+      headers: {
+        ...corsHeaders(),
+        "content-type": decoded.contentType,
+        "cache-control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch (error) {
+    logWorkerError("story.media.decode.failed", error, { mediaId: id });
+    return json({ error: "Story media is invalid." }, { status: 500, headers: corsHeaders() });
+  }
+}
+
+async function handleStoryListAdmin(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const stories = await listStoriesForOwner(env.PRICING_DB, session.username);
+  return json({ stories }, { headers: corsHeaders() });
+}
+
+async function handleStoryCreateAdmin(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  try {
+    const body = await request.json();
+    const payload = parseStoryArticlePayload(body);
+    const story = await insertStoryArticle(env.PRICING_DB, session.username, payload);
+    logWorkerEvent("story.created", {
+      storyId: story.id,
+      status: story.status,
+      ownerUsername: session.username,
+    });
+    return json({ story }, { headers: corsHeaders() });
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Invalid story payload." },
+      { status: 400, headers: corsHeaders() },
+    );
+  }
+}
+
+async function handleStoryUpdateAdmin(request: Request, env: Env, id: number): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  try {
+    const body = await request.json();
+    const payload = parseStoryArticlePayload(body);
+    const story = await updateStoryArticle(env.PRICING_DB, id, session.username, payload);
+
+    if (!story) {
+      return json({ error: "Story not found." }, { status: 404, headers: corsHeaders() });
+    }
+
+    logWorkerEvent("story.updated", {
+      storyId: story.id,
+      status: story.status,
+      ownerUsername: session.username,
+    });
+    return json({ story }, { headers: corsHeaders() });
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Invalid story payload." },
+      { status: 400, headers: corsHeaders() },
+    );
+  }
+}
+
+async function handleStoryDeleteAdmin(request: Request, env: Env, id: number): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  const deleted = await deleteStoryArticle(env.PRICING_DB, id, session.username);
+
+  if (!deleted) {
+    return json({ error: "Story not found." }, { status: 404, headers: corsHeaders() });
+  }
+
+  logWorkerEvent("story.deleted", {
+    storyId: id,
+    ownerUsername: session.username,
+  });
+  return json({ ok: true }, { headers: corsHeaders() });
+}
+
+async function handleStoryMediaCreateAdmin(request: Request, env: Env): Promise<Response> {
+  const session = await requireAuthenticatedSession(request, env);
+
+  if (!session) {
+    return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
+  }
+
+  try {
+    const body = await request.json();
+    const payload = parseStoryMediaPayload(body);
+    const media = await insertStoryMedia(env.PRICING_DB, session.username, payload);
+    const mediaResponse = {
+      id: media.id,
+      filename: media.filename,
+      contentType: media.contentType,
+      sizeBytes: media.sizeBytes,
+      alt: media.alt,
+      createdAt: media.createdAt,
+      url: `/api/story-media/${media.id}`,
+    };
+
+    logWorkerEvent("story.media.created", {
+      mediaId: media.id,
+      contentType: media.contentType,
+      sizeBytes: media.sizeBytes,
+      ownerUsername: session.username,
+    });
+    return json({ media: mediaResponse }, { headers: corsHeaders() });
+  } catch (error) {
+    return json(
+      { error: error instanceof Error ? error.message : "Invalid media payload." },
+      { status: 400, headers: corsHeaders() },
+    );
+  }
+}
+
 async function handleVisitorStatsRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const siteKey = resolveVisitorSiteKey(request, url.searchParams.get("siteKey"));
@@ -674,6 +846,52 @@ async function handleFetchRequest(request: Request, env: Env, ctx: ExecutionCont
 
     if (request.method === "GET" && url.pathname === "/api/pricecharting/item") {
       return handlePriceChartingItemDetail(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/stories") {
+      return handleStoryListPublic(request, env);
+    }
+
+    if (request.method === "GET" && pathParts[0] === "api" && pathParts[1] === "stories" && pathParts[2]) {
+      return handleStoryGetPublic(env, pathParts[2]);
+    }
+
+    if (request.method === "GET" && pathParts[0] === "api" && pathParts[1] === "story-media" && pathParts[2]) {
+      const id = Number.parseInt(pathParts[2], 10);
+
+      if (!Number.isFinite(id)) {
+        return json({ error: "Invalid media id." }, { status: 400, headers: corsHeaders() });
+      }
+
+      return handleStoryMediaGet(env, id);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/admin/stories") {
+      return handleStoryListAdmin(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/stories") {
+      return handleStoryCreateAdmin(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/admin/story-media") {
+      return handleStoryMediaCreateAdmin(request, env);
+    }
+
+    if (pathParts[0] === "api" && pathParts[1] === "admin" && pathParts[2] === "stories" && pathParts[3]) {
+      const id = Number.parseInt(pathParts[3], 10);
+
+      if (!Number.isFinite(id)) {
+        return json({ error: "Invalid story id." }, { status: 400, headers: corsHeaders() });
+      }
+
+      if (request.method === "PUT") {
+        return handleStoryUpdateAdmin(request, env, id);
+      }
+
+      if (request.method === "DELETE") {
+        return handleStoryDeleteAdmin(request, env, id);
+      }
     }
 
     if (request.method === "GET" && url.pathname === "/api/visitors") {

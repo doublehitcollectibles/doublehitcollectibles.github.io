@@ -3,6 +3,8 @@
   var body = document.body;
   var userLink = header ? header.querySelector("[data-admin-user-link]") : null;
   var manageLinks = Array.prototype.slice.call(document.querySelectorAll("[data-manage-collection-link]"));
+  var adminOnlyLinks = Array.prototype.slice.call(document.querySelectorAll("[data-admin-only-link]"));
+  var adminRequiredLinks = Array.prototype.slice.call(document.querySelectorAll("[data-admin-required-link]"));
   var apiBase = body ? String(body.dataset.adminApiBase || "").trim().replace(/\/$/, "") : "";
   var tokenStorageKey = "doublehit.collection.admin.token";
   var sessionState = {
@@ -42,6 +44,8 @@
   }
 
   function setHeaderUser(username) {
+    setAdminOnlyLinks(Boolean(username));
+
     if (!userLink) {
       return;
     }
@@ -57,6 +61,12 @@
     userLink.textContent = username;
     userLink.title = "Signed in as " + username;
     userLink.setAttribute("aria-label", "Open collection admin for " + username);
+  }
+
+  function setAdminOnlyLinks(isVisible) {
+    adminOnlyLinks.forEach(function (link) {
+      link.hidden = !isVisible;
+    });
   }
 
   function buildRequiredManageUrl(rawUrl) {
@@ -193,6 +203,10 @@
   });
 
   manageLinks.forEach(function (link) {
+    link.addEventListener("click", handleManageClick);
+  });
+
+  adminRequiredLinks.forEach(function (link) {
     link.addEventListener("click", handleManageClick);
   });
 

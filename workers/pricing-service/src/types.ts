@@ -26,6 +26,42 @@ export interface VisitorLeavePayload {
   visitId: string;
 }
 
+export type StoryArticleStatus = "draft" | "published";
+
+export interface StoryMediaPayload {
+  filename: string;
+  contentType: string;
+  dataUrl: string;
+  sizeBytes: number;
+  alt?: string;
+}
+
+export interface StoryMediaRecord extends StoryMediaPayload {
+  id: number;
+  ownerUsername: string;
+  createdAt: string;
+  url?: string;
+}
+
+export interface StoryArticlePayload {
+  slug: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  bodyMarkdown: string;
+  status: StoryArticleStatus;
+  heroMediaId?: number | null;
+}
+
+export interface StoryArticleRecord extends StoryArticlePayload {
+  id: number;
+  ownerUsername: string;
+  heroMedia?: Omit<StoryMediaRecord, "dataUrl" | "ownerUsername">;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+}
+
 export interface Env {
   ADMIN_API_KEY?: string;
   ADMIN_USERNAME?: string;
