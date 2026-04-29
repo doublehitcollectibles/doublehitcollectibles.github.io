@@ -21,5 +21,16 @@ page_class: story-index-page
   <div class="story-index-status" data-story-index-status>
     Loading published stories...
   </div>
+  <div
+    data-story-index-static-story
+    data-title="Welcome to Double Hit Collectibles"
+    data-description="Learn what Double Hit Collectibles is, what this site is meant to document, and the future plans for updates, highlights, stories, and vending shows."
+    data-url="{{ '/welcome-to-double-hit-collectibles/' | absolute_url }}"
+    data-cover-url="{{ '/assets/img/blog-image.png' | absolute_url }}"
+    data-cover-alt="Double Hit Collectibles welcome article cover"
+    data-published-at="2026-04-15T12:00:00-07:00"
+    data-cta="Read Article"
+    hidden
+  ></div>
   <section class="story-index-grid" data-story-index-list></section>
 </section>
