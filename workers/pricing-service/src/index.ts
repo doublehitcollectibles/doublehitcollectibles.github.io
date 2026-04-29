@@ -23,6 +23,7 @@ import { json } from "./lib/response";
 import {
   decodeMediaDataUrl,
   deleteStoryArticle,
+  ensureStorySchema,
   getPublishedStoryBySlug,
   getStoryMedia,
   insertStoryArticle,
@@ -534,11 +535,13 @@ async function handlePriceChartingItemDetail(request: Request, env: Env): Promis
 }
 
 async function handleStoryListPublic(_request: Request, env: Env): Promise<Response> {
+  await ensureStorySchema(env.PRICING_DB);
   const stories = await listPublishedStories(env.PRICING_DB);
   return json({ stories }, { headers: corsHeaders() });
 }
 
 async function handleStoryGetPublic(env: Env, slug: string): Promise<Response> {
+  await ensureStorySchema(env.PRICING_DB);
   const story = await getPublishedStoryBySlug(env.PRICING_DB, slug);
 
   if (!story) {
@@ -549,6 +552,7 @@ async function handleStoryGetPublic(env: Env, slug: string): Promise<Response> {
 }
 
 async function handleStoryMediaGet(env: Env, id: number): Promise<Response> {
+  await ensureStorySchema(env.PRICING_DB);
   const media = await getStoryMedia(env.PRICING_DB, id);
 
   if (!media) {
@@ -577,6 +581,7 @@ async function handleStoryListAdmin(request: Request, env: Env): Promise<Respons
     return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
   }
 
+  await ensureStorySchema(env.PRICING_DB);
   const stories = await listStoriesForOwner(env.PRICING_DB, session.username);
   return json({ stories }, { headers: corsHeaders() });
 }
@@ -589,6 +594,7 @@ async function handleStoryCreateAdmin(request: Request, env: Env): Promise<Respo
   }
 
   try {
+    await ensureStorySchema(env.PRICING_DB);
     const body = await request.json();
     const payload = parseStoryArticlePayload(body);
     const story = await insertStoryArticle(env.PRICING_DB, session.username, payload);
@@ -614,6 +620,7 @@ async function handleStoryUpdateAdmin(request: Request, env: Env, id: number): P
   }
 
   try {
+    await ensureStorySchema(env.PRICING_DB);
     const body = await request.json();
     const payload = parseStoryArticlePayload(body);
     const story = await updateStoryArticle(env.PRICING_DB, id, session.username, payload);
@@ -643,6 +650,7 @@ async function handleStoryDeleteAdmin(request: Request, env: Env, id: number): P
     return json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders() });
   }
 
+  await ensureStorySchema(env.PRICING_DB);
   const deleted = await deleteStoryArticle(env.PRICING_DB, id, session.username);
 
   if (!deleted) {
@@ -664,6 +672,7 @@ async function handleStoryMediaCreateAdmin(request: Request, env: Env): Promise<
   }
 
   try {
+    await ensureStorySchema(env.PRICING_DB);
     const body = await request.json();
     const payload = parseStoryMediaPayload(body);
     const media = await insertStoryMedia(env.PRICING_DB, session.username, payload);
