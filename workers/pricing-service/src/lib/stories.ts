@@ -13,6 +13,63 @@ const MAX_BODY_LENGTH = 60000;
 const MAX_FILENAME_LENGTH = 180;
 const MAX_MEDIA_BYTES = 3 * 1024 * 1024;
 const ALLOWED_MEDIA_TYPES = new Set(["image/gif", "image/jpeg", "image/png", "image/webp"]);
+let schemaReady: Promise<void> | null = null;
+
+export function ensureStorySchema(db: D1Database): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = createStorySchema(db).catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  }
+
+  return schemaReady;
+}
+
+async function createStorySchema(db: D1Database): Promise<void> {
+  await db.batch([
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS story_media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_username TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        data_url TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        alt TEXT,
+        created_at TEXT NOT NULL
+      )`,
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS story_articles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_username TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        subtitle TEXT,
+        description TEXT,
+        body_markdown TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        hero_media_id INTEGER REFERENCES story_media(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        published_at TEXT
+      )`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_story_articles_status_published
+        ON story_articles (status, published_at DESC, updated_at DESC)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_story_articles_owner_updated
+        ON story_articles (owner_username, updated_at DESC)`,
+    ),
+    db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_story_media_owner_created
+        ON story_media (owner_username, created_at DESC)`,
+    ),
+  ]);
+}
 
 function nowIso(): string {
   return new Date().toISOString();
