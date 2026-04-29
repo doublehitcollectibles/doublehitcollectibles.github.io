@@ -6,6 +6,26 @@ export interface PricingJob {
   enqueuedAt: string;
 }
 
+export type VisitorTrackAction = "visit" | "heartbeat";
+
+export interface VisitorStats {
+  visits: number;
+  uniqueVisitors: number;
+  onSite: number;
+}
+
+export interface VisitorTrackPayload {
+  siteKey: string;
+  visitorId: string;
+  visitId: string;
+  action: VisitorTrackAction;
+}
+
+export interface VisitorLeavePayload {
+  siteKey: string;
+  visitId: string;
+}
+
 export interface Env {
   ADMIN_API_KEY?: string;
   ADMIN_USERNAME?: string;

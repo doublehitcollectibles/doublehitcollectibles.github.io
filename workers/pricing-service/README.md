@@ -19,6 +19,9 @@ It is designed to:
 - `POST /api/admin/collection/cards`
 - `PUT /api/admin/collection/cards/:id`
 - `DELETE /api/admin/collection/cards/:id`
+- `GET /api/visitors`
+- `POST /api/visitors/track`
+- `POST /api/visitors/leave`
 - `GET /api/pokemon/cards/search?q=mewtwo 281`
 - `GET /api/pokemon/cards/:id`
 - the existing queue, KV, and durable-object foundation for broader pricing workflows
@@ -52,6 +55,12 @@ Apply local migrations:
 
 ```bash
 npx wrangler d1 migrations apply doublehit-pricing --local
+```
+
+If the visitor widget schema changes are already deployed elsewhere, run the same command against production before using the live counter:
+
+```bash
+npx wrangler d1 migrations apply doublehit-pricing
 ```
 
 Start local development:
