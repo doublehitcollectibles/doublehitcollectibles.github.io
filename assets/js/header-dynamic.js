@@ -5,7 +5,19 @@
   var manageLinks = Array.prototype.slice.call(document.querySelectorAll("[data-manage-collection-link]"));
   var adminOnlyLinks = Array.prototype.slice.call(document.querySelectorAll("[data-admin-only-link]"));
   var adminRequiredLinks = Array.prototype.slice.call(document.querySelectorAll("[data-admin-required-link]"));
-  var apiBase = body ? String(body.dataset.adminApiBase || "").trim().replace(/\/$/, "") : "";
+  var apiMeta = document.querySelector('meta[name="doublehit-worker-api-base"]');
+  var adminMenuPanel = document.querySelector("[data-admin-menu-panel]");
+  var adminMenuLoginForm = document.querySelector("[data-admin-menu-login-form]");
+  var adminMenuMessage = document.querySelector("[data-admin-menu-message]");
+  var adminMenuSession = document.querySelector("[data-admin-menu-session]");
+  var adminMenuUsername = document.querySelector("[data-admin-menu-username]");
+  var adminMenuLogout = document.querySelector("[data-admin-menu-logout]");
+  var apiBase = (
+    body ? String(body.dataset.adminApiBase || "").trim() : ""
+  ) || (
+    apiMeta ? String(apiMeta.getAttribute("content") || "").trim() : ""
+  );
+  apiBase = apiBase.replace(/\/$/, "");
   var tokenStorageKey = "doublehit.collection.admin.token";
   var sessionState = {
     token: readStoredToken(),
@@ -45,6 +57,7 @@
 
   function setHeaderUser(username) {
     setAdminOnlyLinks(Boolean(username));
+    setAdminMenuState(username);
 
     if (!userLink) {
       return;
@@ -69,6 +82,52 @@
     });
   }
 
+  function setAdminMenuState(username) {
+    if (!adminMenuPanel) {
+      return;
+    }
+
+    var isAuthenticated = Boolean(username);
+
+    if (adminMenuLoginForm) {
+      adminMenuLoginForm.hidden = isAuthenticated;
+    }
+
+    if (adminMenuSession) {
+      adminMenuSession.hidden = !isAuthenticated;
+    }
+
+    if (adminMenuUsername) {
+      adminMenuUsername.textContent = username || "";
+    }
+
+    renderAdminMenuMessage(
+      isAuthenticated
+        ? "Admin tools are ready."
+        : "Sign in to create stories from any page.",
+      isAuthenticated ? "success" : "info",
+    );
+  }
+
+  function renderAdminMenuMessage(message, mode) {
+    if (!adminMenuMessage) {
+      return;
+    }
+
+    adminMenuMessage.textContent = message || "";
+    adminMenuMessage.setAttribute("data-mode", mode || "info");
+  }
+
+  function setAdminMenuBusy(isBusy) {
+    if (!adminMenuLoginForm) {
+      return;
+    }
+
+    Array.prototype.slice.call(adminMenuLoginForm.elements).forEach(function (field) {
+      field.disabled = Boolean(isBusy);
+    });
+  }
+
   function buildRequiredManageUrl(rawUrl) {
     var manageUrl = new URL(rawUrl, window.location.origin);
     manageUrl.searchParams.set("required", "1");
@@ -80,6 +139,17 @@
 
     if (sessionState.token) {
       headers.set("authorization", "Bearer " + sessionState.token);
+    }
+
+    return headers;
+  }
+
+  function buildJsonHeaders(includeAuth) {
+    var headers = buildSessionHeaders();
+    headers.set("content-type", "application/json");
+
+    if (!includeAuth) {
+      headers.delete("authorization");
     }
 
     return headers;
@@ -110,7 +180,15 @@
   }
 
   function fetchAdminSession() {
-    if (!apiBase || !sessionState.token) {
+    if (!apiBase) {
+      sessionState.username = "";
+      sessionState.checked = true;
+      setHeaderUser("");
+      renderAdminMenuMessage("Admin login is unavailable because the Worker API URL is missing.", "error");
+      return Promise.resolve("");
+    }
+
+    if (!sessionState.token) {
       clearSessionState();
       return Promise.resolve("");
     }
@@ -149,6 +227,93 @@
       });
 
     return sessionState.pending;
+  }
+
+  function parseJsonResponse(response) {
+    return response.text().then(function (text) {
+      var payload = null;
+
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch (_error) {
+          payload = { error: text };
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(payload && payload.error ? payload.error : "Admin request failed.");
+      }
+
+      return payload || {};
+    });
+  }
+
+  function broadcastAuthChanged(detail) {
+    window.dispatchEvent(
+      new CustomEvent("doublehit-admin-auth-changed", {
+        detail: detail || {},
+      }),
+    );
+  }
+
+  function handleAdminMenuLogin(event) {
+    event.preventDefault();
+
+    if (!apiBase) {
+      renderAdminMenuMessage("Admin login is unavailable because the Worker API URL is missing.", "error");
+      return;
+    }
+
+    var formData = new FormData(adminMenuLoginForm);
+    var username = String(formData.get("username") || "").trim();
+    var password = String(formData.get("password") || "");
+
+    if (!username || !password) {
+      renderAdminMenuMessage("Username and password are required.", "error");
+      return;
+    }
+
+    setAdminMenuBusy(true);
+    renderAdminMenuMessage("Signing in...", "info");
+
+    fetch(apiBase + "/api/auth/login", {
+      method: "POST",
+      headers: buildJsonHeaders(false),
+      body: JSON.stringify({ username: username, password: password }),
+    })
+      .then(parseJsonResponse)
+      .then(function (payload) {
+        var token = typeof payload.token === "string" ? payload.token.trim() : "";
+        var nextUsername = normalizeUsername(payload.user) || username;
+
+        if (!token) {
+          throw new Error("Login did not return a session token.");
+        }
+
+        setAuthenticatedUser(nextUsername, token);
+        adminMenuLoginForm.reset();
+        broadcastAuthChanged({
+          token: token,
+          username: nextUsername,
+        });
+      })
+      .catch(function (error) {
+        clearSessionState();
+        renderAdminMenuMessage(error instanceof Error ? error.message : "Admin login failed.", "error");
+      })
+      .finally(function () {
+        setAdminMenuBusy(false);
+      });
+  }
+
+  function handleAdminMenuLogout() {
+    clearSessionState();
+    broadcastAuthChanged({
+      signedOut: true,
+      token: "",
+      username: "",
+    });
   }
 
   function handleManageClick(event) {
@@ -209,6 +374,14 @@
   adminRequiredLinks.forEach(function (link) {
     link.addEventListener("click", handleManageClick);
   });
+
+  if (adminMenuLoginForm) {
+    adminMenuLoginForm.addEventListener("submit", handleAdminMenuLogin);
+  }
+
+  if (adminMenuLogout) {
+    adminMenuLogout.addEventListener("click", handleAdminMenuLogout);
+  }
 
   syncHeaderState();
   fetchAdminSession();

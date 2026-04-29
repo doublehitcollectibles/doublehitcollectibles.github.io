@@ -36,6 +36,7 @@ aside.sidebar {
   left: rem(-240px);
   background-color: $accentDark;
   z-index: 20;
+  overflow-y: auto;
 
   @include media(">=sm") {
     padding: rem(10px) 0 0;
@@ -86,5 +87,96 @@ aside.sidebar {
         }
       }
     }
+  }
+
+  .menu-admin-panel {
+    margin: rem(8px) rem(14px) rem(24px);
+    padding: rem(14px);
+    border: 1px solid rgba($primaryDark, 0.18);
+    border-radius: rem(14px);
+    background: rgba($primaryDark, 0.04);
+
+    h3 {
+      margin: 0;
+      @include mainFont(700);
+      color: $primaryDark;
+      font-size: rem(16px);
+      line-height: 1.2;
+    }
+
+    p {
+      margin: rem(8px) 0 0;
+      @include mainFont(300);
+      color: rgba($primaryDark, 0.76);
+      font-size: rem(13px);
+      line-height: 1.35;
+    }
+
+    p[data-mode="error"] {
+      color: #a51f1f;
+    }
+
+    p[data-mode="success"] {
+      color: #1f6d42;
+    }
+  }
+
+  .menu-admin-form,
+  .menu-admin-session {
+    display: grid;
+    gap: rem(10px);
+    margin-top: rem(12px);
+  }
+
+  .menu-admin-form[hidden],
+  .menu-admin-session[hidden],
+  .admin-menu-links [hidden] {
+    display: none;
+  }
+
+  .menu-admin-form label {
+    display: grid;
+    gap: rem(4px);
+
+    span {
+      @include mainFont(400);
+      color: rgba($primaryDark, 0.72);
+      font-size: rem(11px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+  }
+
+  .menu-admin-form input {
+    width: 100%;
+    border: 1px solid rgba($primaryDark, 0.18);
+    border-radius: rem(10px);
+    background: rgba(#fff, 0.82);
+    color: $primaryDark;
+    padding: rem(9px) rem(10px);
+    @include mainFont(400);
+    font-size: rem(14px);
+  }
+
+  .menu-admin-form button,
+  .menu-admin-session button {
+    border: 0;
+    border-radius: rem(10px);
+    background: $themeColor;
+    color: $accentDark;
+    cursor: pointer;
+    padding: rem(10px) rem(12px);
+    @include mainFont(700);
+    font-size: rem(13px);
+  }
+
+  .menu-admin-form button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .menu-admin-session button {
+    background: rgba($primaryDark, 0.08);
+    color: $primaryDark;
   }
 }
