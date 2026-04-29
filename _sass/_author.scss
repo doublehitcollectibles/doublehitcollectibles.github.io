@@ -37,9 +37,10 @@
 
   img {
     width: rem(150px);
-    border-radius: 50%;
+    border-radius: rem(4px);
     display: block;
     margin: auto;
+    object-fit: cover;
 
     @include media(">=sm") {
       width: rem(180px);
