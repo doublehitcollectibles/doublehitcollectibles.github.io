@@ -249,6 +249,25 @@
       list: indexApp.querySelector("[data-story-index-list]"),
     };
 
+    function getStaticStories() {
+      return Array.prototype.slice.call(indexApp.querySelectorAll("[data-story-index-static-story]"))
+        .map(function (element) {
+          return {
+            isStatic: true,
+            title: element.dataset.title || "Untitled Article",
+            description: element.dataset.description || "",
+            url: element.dataset.url || "",
+            coverUrl: element.dataset.coverUrl || "",
+            coverAlt: element.dataset.coverAlt || element.dataset.title || "Article cover",
+            publishedAt: element.dataset.publishedAt || "",
+            cta: element.dataset.cta || "Read Article",
+          };
+        })
+        .filter(function (story) {
+          return story.url;
+        });
+    }
+
     function setStatus(message, mode) {
       if (!elements.status) {
         return;
@@ -260,32 +279,36 @@
     }
 
     function renderStories(stories) {
-      if (!Array.isArray(stories) || !stories.length) {
+      var allStories = getStaticStories().concat(Array.isArray(stories) ? stories : []);
+
+      if (!allStories.length) {
         elements.list.innerHTML = "";
         setStatus("No published stories yet. Check back soon.", "info");
         return;
       }
 
-      elements.list.innerHTML = stories.map(function (story) {
+      elements.list.innerHTML = allStories.map(function (story) {
         var hero = story.heroMedia || null;
-        var heroUrl = hero && hero.url ? resolveMediaUrl(hero.url, apiBase) : "";
-        var storyUrl = buildStoryUrl(templateUrl, story.slug);
+        var heroUrl = story.coverUrl || (hero && hero.url ? resolveMediaUrl(hero.url, apiBase) : "");
+        var storyUrl = story.url || buildStoryUrl(templateUrl, story.slug);
         var description = story.description || story.subtitle || "Read this Double Hit Collectibles story.";
+        var publishedAt = story.publishedAt || story.updatedAt || story.createdAt || "";
+        var cta = story.cta || "Read Story";
 
         return [
           '<article class="story-index-card">',
           '<a class="story-index-cover" href="' + utils.escapeAttribute(storyUrl) + '">',
           heroUrl
-            ? '<img src="' + utils.escapeAttribute(heroUrl) + '" alt="' + utils.escapeAttribute(hero.alt || story.title) + '">'
+            ? '<img src="' + utils.escapeAttribute(heroUrl) + '" alt="' + utils.escapeAttribute(story.coverAlt || hero.alt || story.title) + '">'
             : '<span aria-hidden="true"></span>',
           '</a>',
           '<div class="story-index-card-copy">',
-          '<time datetime="' + utils.escapeAttribute(story.publishedAt || story.updatedAt || story.createdAt || "") + '">' +
-          utils.escapeHtml(utils.formatDate(story.publishedAt || story.updatedAt || story.createdAt)) +
+          '<time datetime="' + utils.escapeAttribute(publishedAt) + '">' +
+          utils.escapeHtml(utils.formatDate(publishedAt)) +
           '</time>',
           '<h2><a href="' + utils.escapeAttribute(storyUrl) + '">' + utils.escapeHtml(story.title || "Untitled Story") + '</a></h2>',
           '<p>' + utils.escapeHtml(description) + '</p>',
-          '<a class="story-index-read-link" href="' + utils.escapeAttribute(storyUrl) + '">Read Story</a>',
+          '<a class="story-index-read-link" href="' + utils.escapeAttribute(storyUrl) + '">' + utils.escapeHtml(cta) + '</a>',
           '</div>',
           '</article>',
         ].join("");
@@ -295,7 +318,9 @@
 
     async function loadStories() {
       if (!apiBase) {
-        throw new Error("Story API is not configured.");
+        renderStories([]);
+        setStatus("Published stories are not configured yet. Showing site articles.", "info");
+        return;
       }
 
       setStatus("Loading published stories...", "info");
@@ -304,6 +329,12 @@
     }
 
     loadStories().catch(function (error) {
+      if (getStaticStories().length) {
+        renderStories([]);
+        setStatus("Published stories could not be loaded. Showing site articles.", "error");
+        return;
+      }
+
       elements.list.innerHTML = "";
       setStatus(error instanceof Error ? error.message : "Stories could not be loaded.", "error");
     });
